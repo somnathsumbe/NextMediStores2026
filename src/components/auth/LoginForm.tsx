@@ -7,21 +7,37 @@ import { authService } from "@/services/auth/auth.service";
 
 export default function LoginForm() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const user = authService.login({ username: username.trim(), password, rememberMe });
-    if (!user) {
-      setError("Invalid username or password");
+    const formData = new FormData(event.currentTarget);
+    const submittedIdentifier = String(formData.get("identifier") ?? "").trim();
+    const submittedPassword = String(formData.get("password") ?? "");
+    setIdentifier(submittedIdentifier);
+    setPassword(submittedPassword);
+    if (!submittedIdentifier || !submittedPassword) {
+      setError("Enter your email or mobile number and password.");
       return;
     }
-    setError("");
-    router.replace("/dashboard");
+    setSubmitting(true);
+    try {
+      const user = await authService.login({ identifier: submittedIdentifier, password: submittedPassword, rememberMe });
+      if (!user) {
+        setError("Invalid email/mobile or password.");
+        return;
+      }
+      setError("");
+      router.replace("/dashboard");
+      router.refresh();
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -38,16 +54,16 @@ export default function LoginForm() {
         {error && <div id="login-error" className="alert alert-danger" role="alert">{error}</div>}
         <form onSubmit={submit} noValidate>
           <div className="mb-3">
-            <label htmlFor="username" className="form-label">Username</label>
+              <label htmlFor="identifier" className="form-label">Email or mobile number</label>
             <input
-              id="username"
-              name="username"
+              id="identifier"
+              name="identifier"
               type="text"
               autoComplete="username"
               className="form-control"
-              value={username}
-              onChange={event => { setUsername(event.target.value); setError(""); }}
-              placeholder="Enter username"
+              value={identifier}
+              onChange={event => { setIdentifier(event.target.value); setError(""); }}
+              placeholder="Enter email or mobile"
               aria-invalid={Boolean(error)}
               aria-describedby={error ? "login-error" : undefined}
               required
@@ -87,9 +103,11 @@ export default function LoginForm() {
             </label>
             <Link href="/forgot-password" className="small text-primary">Forgot Password?</Link>
           </div>
-          <button type="submit" className="btn btn-brand w-100 py-2">Sign In</button>
+          <button type="submit" className="btn btn-brand w-100 py-2" disabled={submitting}>
+            {submitting ? "Signing in..." : "Sign In"}
+          </button>
         </form>
-        <p className="login-demo-note mb-0 mt-4">Development access: use the provided demo credentials.</p>
+        <p className="login-demo-note mb-0 mt-4">New dealer or retailer? <Link href="/signup">Register here</Link>.</p>
       </section>
     </main>
   );

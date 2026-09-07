@@ -1,9 +1,27 @@
 export type AuthUser = {
   username: string;
+  email?: string;
+  mobile?: string;
 };
 
 export type LoginCredentials = {
-  username: string;
+  identifier: string;
   password: string;
   rememberMe: boolean;
+};
+
+export type RegistrationData = {
+  businessName: string;
+  ownerName: string;
+  mobile: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  drugLicenseNumber: string;
+  gstNumber: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  role: "dealer" | "retailer";
 };

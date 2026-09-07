@@ -1,10 +1,7 @@
-import type { AuthUser, LoginCredentials } from "@/types/auth";
+import type { AuthUser, LoginCredentials, RegistrationData } from "@/types/auth";
 
 const AUTH_KEY = "medistores_auth";
 const USER_KEY = "medistores_user";
-const DEMO_USERNAME = "admin";
-const DEMO_PASSWORD = "admin";
-
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 function getStorages(): StorageLike[] {
@@ -13,16 +10,40 @@ function getStorages(): StorageLike[] {
 }
 
 export const authService = {
-  login({ username, password, rememberMe }: LoginCredentials): AuthUser | null {
-    if (username !== DEMO_USERNAME || password !== DEMO_PASSWORD || typeof window === "undefined") return null;
+  async login({ identifier, password, rememberMe }: LoginCredentials): Promise<AuthUser | null> {
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, password, rememberMe }),
+      });
+      if (!response.ok || typeof window === "undefined") return null;
+      const user = await response.json() as AuthUser;
 
-    const target = rememberMe ? window.localStorage : window.sessionStorage;
-    const other = rememberMe ? window.sessionStorage : window.localStorage;
-    target.setItem(AUTH_KEY, "1");
-    target.setItem(USER_KEY, username);
-    other.removeItem(AUTH_KEY);
-    other.removeItem(USER_KEY);
-    return { username };
+      const target = rememberMe ? window.localStorage : window.sessionStorage;
+      const other = rememberMe ? window.sessionStorage : window.localStorage;
+      target.setItem(AUTH_KEY, "1");
+      target.setItem(USER_KEY, user.username);
+      other.removeItem(AUTH_KEY);
+      other.removeItem(USER_KEY);
+      return user;
+    } catch {
+      return null;
+    }
+  },
+
+  async register(data: RegistrationData): Promise<{ ok: boolean; message?: string }> {
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json() as { message?: string };
+      return { ok: response.ok, message: result.message };
+    } catch {
+      return { ok: false, message: "Unable to reach the registration service." };
+    }
   },
 
   isAuthenticated(): boolean {
@@ -35,7 +56,8 @@ export const authService = {
     return username ? { username } : null;
   },
 
-  logout(): void {
+  async logout(): Promise<void> {
+    await fetch("/api/auth/logout", { method: "POST" });
     getStorages().forEach(storage => {
       storage.removeItem(AUTH_KEY);
       storage.removeItem(USER_KEY);

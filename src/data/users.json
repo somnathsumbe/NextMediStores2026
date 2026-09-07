@@ -1,0 +1,32 @@
+[
+  {
+    "address": "Main Road",
+    "drugLicenseNumber": "DL-123",
+    "state": "Maharashtra",
+    "password": "secret123",
+    "businessName": "Test Pharmacy",
+    "ownerName": "Test Owner",
+    "role": "retailer",
+    "gstNumber": "GST-123",
+    "city": "Pune",
+    "pincode": "411001",
+    "email": "test@example.com",
+    "mobile": "9999999999",
+    "createdAt": "2026-09-07T14:16:53.335Z"
+  },
+  {
+    "businessName": "shreedha",
+    "ownerName": "somnath",
+    "mobile": "9028787219",
+    "email": "somasumbe@gmail.com",
+    "password": "123",
+    "drugLicenseNumber": "123",
+    "gstNumber": "123",
+    "address": "501 arunaren",
+    "city": "pune",
+    "state": "maharashtra",
+    "pincode": "411014",
+    "role": "retailer",
+    "createdAt": "2026-09-07T14:52:53.804Z"
+  }
+]
