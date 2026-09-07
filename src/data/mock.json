@@ -1,0 +1,251 @@
+{
+  "products": [
+    {
+      "id": 1,
+      "code": "MED-001",
+      "name": "Paracetamol 500mg",
+      "brand": "Cipla",
+      "category": "Tablets",
+      "hsn": "3004",
+      "batch": "PCM24A01",
+      "expiry": "2027-08-31",
+      "stock": 120,
+      "minStock": 50,
+      "purchasePrice": 2.5,
+      "salePrice": 4.0
+    },
+    {
+      "id": 2,
+      "code": "MED-002",
+      "name": "Azithromycin 500mg",
+      "brand": "Alkem",
+      "category": "Tablets",
+      "hsn": "3004",
+      "batch": "AZI24B12",
+      "expiry": "2027-02-28",
+      "stock": 18,
+      "minStock": 30,
+      "purchasePrice": 8,
+      "salePrice": 12
+    },
+    {
+      "id": 3,
+      "code": "MED-003",
+      "name": "Vitamin D3 60000 IU",
+      "brand": "Mankind",
+      "category": "Supplements",
+      "hsn": "3004",
+      "batch": "VD24C03",
+      "expiry": "2028-01-31",
+      "stock": 75,
+      "minStock": 25,
+      "purchasePrice": 15,
+      "salePrice": 22
+    },
+    {
+      "id": 4,
+      "code": "MED-004",
+      "name": "Pantoprazole 40mg",
+      "brand": "Sun Pharma",
+      "category": "Tablets",
+      "hsn": "3004",
+      "batch": "PAN25D07",
+      "expiry": "2027-12-31",
+      "stock": 12,
+      "minStock": 25,
+      "purchasePrice": 5,
+      "salePrice": 8
+    }
+  ],
+  "customers": [
+    {
+      "id": 1,
+      "name": "Apollo Pharmacy",
+      "type": "Customer",
+      "phone": "9876543210",
+      "gst": "27AAAAA1111A1Z5",
+      "city": "Pune"
+    },
+    {
+      "id": 2,
+      "name": "MedPlus Store",
+      "type": "Customer",
+      "phone": "9822001122",
+      "gst": "27BBBBB2222B1Z4",
+      "city": "Mumbai"
+    }
+  ],
+  "suppliers": [
+    {
+      "id": 1,
+      "name": "Cipla Ltd.",
+      "type": "Supplier",
+      "phone": "9123456789",
+      "gst": "27CCCCC3333C1Z3",
+      "city": "Mumbai"
+    },
+    {
+      "id": 2,
+      "name": "Sun Pharma",
+      "type": "Supplier",
+      "phone": "9234567890",
+      "gst": "27DDDDD4444D1Z2",
+      "city": "Pune"
+    }
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "name": "Tablets",
+      "description": "Solid oral dosage forms"
+    },
+    {
+      "id": 2,
+      "name": "Syrups",
+      "description": "Oral liquid medicines"
+    },
+    {
+      "id": 3,
+      "name": "Supplements",
+      "description": "Vitamins and nutrition"
+    }
+  ],
+  "brands": [
+    {
+      "id": 1,
+      "name": "Cipla",
+      "contact": "1800-267-7777"
+    },
+    {
+      "id": 2,
+      "name": "Sun Pharma",
+      "contact": "1800-123-4567"
+    },
+    {
+      "id": 3,
+      "name": "Mankind",
+      "contact": "1800-123-1234"
+    },
+    {
+      "id": 4,
+      "name": "Alkem",
+      "contact": "1800-102-3435"
+    }
+  ],
+  "hsn": [
+    {
+      "id": 1,
+      "code": "3004",
+      "description": "Medicaments",
+      "gst": "12%"
+    },
+    {
+      "id": 2,
+      "code": "3003",
+      "description": "Medicaments not in measured doses",
+      "gst": "12%"
+    }
+  ],
+  "transport": [
+    {
+      "id": 1,
+      "name": "Shree Logistics",
+      "vehicle": "MH12AB1234",
+      "contact": "9876500000"
+    },
+    {
+      "id": 2,
+      "name": "Express Pharma Transport",
+      "vehicle": "MH14CD5678",
+      "contact": "9876511111"
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "name": "Admin User",
+      "username": "admin",
+      "role": "Administrator",
+      "status": "Active"
+    },
+    {
+      "id": 2,
+      "name": "Sales Executive",
+      "username": "sales",
+      "role": "MR / Field Sales",
+      "status": "Active"
+    },
+    {
+      "id": 3,
+      "name": "Accounts User",
+      "username": "accounts",
+      "role": "Accounts",
+      "status": "Active"
+    }
+  ],
+  "salesOrders": [
+    {
+      "id": "SO-1001",
+      "date": "2026-09-05",
+      "party": "Apollo Pharmacy",
+      "items": 5,
+      "amount": 18650,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1002",
+      "date": "2026-09-06",
+      "party": "MedPlus Store",
+      "items": 3,
+      "amount": 9240,
+      "status": "Pending"
+    }
+  ],
+  "purchaseOrders": [
+    {
+      "id": "PO-2001",
+      "date": "2026-09-04",
+      "party": "Cipla Ltd.",
+      "items": 8,
+      "amount": 45200,
+      "status": "Received"
+    },
+    {
+      "id": "PO-2002",
+      "date": "2026-09-06",
+      "party": "Sun Pharma",
+      "items": 4,
+      "amount": 21800,
+      "status": "Pending"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "TX-5001",
+      "date": "2026-09-05",
+      "type": "Sale",
+      "reference": "SO-1001",
+      "party": "Apollo Pharmacy",
+      "amount": 18650,
+      "mode": "UPI"
+    },
+    {
+      "id": "TX-5002",
+      "date": "2026-09-06",
+      "type": "Purchase",
+      "reference": "PO-2002",
+      "party": "Sun Pharma",
+      "amount": 21800,
+      "mode": "Bank"
+    },
+    {
+      "id": "TX-5003",
+      "date": "2026-09-06",
+      "type": "Receipt",
+      "reference": "RC-302",
+      "party": "MedPlus Store",
+      "amount": 9240,
+      "mode": "Cash"
+    }
+  ]
+}

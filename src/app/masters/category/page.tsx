@@ -1,0 +1,1 @@
+import {MasterPage} from "@/components/ui"; export default function Page(){return <MasterPage title="Category Master" collection="categories" subtitle="Maintain category master records and reference data" columns={[{key:"id",label:"ID"}, {key:"name",label:"Category"}, {key:"description",label:"Description"}]}/>}

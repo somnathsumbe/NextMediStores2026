@@ -1,0 +1,1 @@
+import {MasterPage} from "@/components/ui"; export default function Page(){return <MasterPage title="Brand Master" collection="brands" subtitle="Maintain brand master records and reference data" columns={[{key:"id",label:"ID"}, {key:"name",label:"Brand"}, {key:"contact",label:"Contact"}]}/>}

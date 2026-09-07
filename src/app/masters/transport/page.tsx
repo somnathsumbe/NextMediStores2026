@@ -1,0 +1,1 @@
+import {MasterPage} from "@/components/ui"; export default function Page(){return <MasterPage title="Transport Master" collection="transport" subtitle="Maintain transport master records and reference data" columns={[{key:"id",label:"ID"}, {key:"name",label:"Transporter"}, {key:"vehicle",label:"Vehicle"}, {key:"contact",label:"Contact"}]}/>}

@@ -1,0 +1,2 @@
+import { DataTable, PageHeader } from "@/components/ui";
+export default function PurchaseOrders() { return <div className="page"><PageHeader title="Purchase Orders" subtitle="Purchase planning, receipts and supplier orders" action="New Purchase Order" href="#new" /><DataTable collection="purchaseOrders" columns={[{key:"id",label:"Order"},{key:"date",label:"Date"},{key:"party",label:"Supplier"},{key:"items",label:"Items"},{key:"amount",label:"Amount"},{key:"status",label:"Status"}]} /></div>; }

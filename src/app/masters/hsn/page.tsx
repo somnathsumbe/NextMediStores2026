@@ -1,0 +1,1 @@
+import {MasterPage} from "@/components/ui"; export default function Page(){return <MasterPage title="HSN Master" collection="hsn" subtitle="Maintain hsn master records and reference data" columns={[{key:"id",label:"ID"}, {key:"code",label:"HSN Code"}, {key:"description",label:"Description"}, {key:"gst",label:"GST"}]}/>}

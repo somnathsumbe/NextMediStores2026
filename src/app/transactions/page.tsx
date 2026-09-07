@@ -1,0 +1,2 @@
+import { DataTable, PageHeader } from "@/components/ui";
+export default function Transactions() { return <div className="page"><PageHeader title="Transactions" subtitle="Receipts, payments and sales/purchase ledger" /><DataTable collection="transactions" columns={[{key:"id",label:"Transaction"},{key:"date",label:"Date"},{key:"type",label:"Type"},{key:"reference",label:"Reference"},{key:"party",label:"Party"},{key:"amount",label:"Amount"},{key:"mode",label:"Mode"}]} /></div>; }
