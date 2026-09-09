@@ -1,0 +1,300 @@
+{
+  "parties": [
+    "Apollo Pharmacy",
+    "MedPlus Healthcare",
+    "Wellness Retail",
+    "City Care Hospital"
+  ],
+  "banks": [
+    "HDFC Bank",
+    "ICICI Bank",
+    "State Bank of India",
+    "Axis Bank",
+    "Kotak Mahindra Bank"
+  ],
+  "cities": [
+    "Mumbai",
+    "Pune",
+    "Bengaluru",
+    "Hyderabad",
+    "New Delhi",
+    "Chennai"
+  ],
+  "records": [
+    {
+      "id": 1,
+      "party": "Apollo Pharmacy",
+      "bankName": "HDFC Bank",
+      "address": "Andheri East, Mumbai",
+      "ifsc": "HDFC0001245",
+      "accountNo": "50200018476291",
+      "city": "Mumbai",
+      "isDefault": true,
+      "status": "Active"
+    },
+    {
+      "id": 2,
+      "party": "MedPlus Healthcare",
+      "bankName": "ICICI Bank",
+      "address": "Hitech City, Hyderabad",
+      "ifsc": "ICIC0002371",
+      "accountNo": "014205001983",
+      "city": "Hyderabad",
+      "isDefault": false,
+      "status": "Active"
+    },
+    {
+      "id": 3,
+      "party": "Wellness Retail",
+      "bankName": "State Bank of India",
+      "address": "Baner Road, Pune",
+      "ifsc": "SBIN0006412",
+      "accountNo": "321456789012",
+      "city": "Pune",
+      "isDefault": true,
+      "status": "Active"
+    },
+    {
+      "id": 4,
+      "party": "City Care Hospital",
+      "bankName": "Axis Bank",
+      "address": "Indiranagar, Bengaluru",
+      "ifsc": "UTIB0001189",
+      "accountNo": "912345678901",
+      "city": "Bengaluru",
+      "isDefault": true,
+      "status": "Inactive"
+    },
+    {
+      "id": 5,
+      "party": "Apollo Pharmacy",
+      "bankName": "Kotak Mahindra Bank",
+      "address": "Connaught Place, New Delhi",
+      "ifsc": "KKBK0004581",
+      "accountNo": "671234567890",
+      "city": "New Delhi",
+      "isDefault": false,
+      "status": "Active"
+    },
+    {
+      "id": 6,
+      "party": "MedPlus Healthcare",
+      "bankName": "HDFC Bank",
+      "address": "Banjara Hills, Hyderabad",
+      "ifsc": "HDFC0002186",
+      "accountNo": "50200018476306",
+      "city": "Hyderabad",
+      "isDefault": true,
+      "status": "Active"
+    },
+    {
+      "id": 7,
+      "party": "Wellness Retail",
+      "bankName": "ICICI Bank",
+      "address": "Kothrud, Pune",
+      "ifsc": "ICIC0002487",
+      "accountNo": "014205001984",
+      "city": "Pune",
+      "isDefault": false,
+      "status": "Active"
+    },
+    {
+      "id": 8,
+      "party": "City Care Hospital",
+      "bankName": "State Bank of India",
+      "address": "Whitefield, Bengaluru",
+      "ifsc": "SBIN0007523",
+      "accountNo": "321456789013",
+      "city": "Bengaluru",
+      "isDefault": false,
+      "status": "Active"
+    },
+    {
+      "id": 9,
+      "party": "Apollo Pharmacy",
+      "bankName": "Axis Bank",
+      "address": "Powai, Mumbai",
+      "ifsc": "UTIB0002294",
+      "accountNo": "912345678902",
+      "city": "Mumbai",
+      "isDefault": false,
+      "status": "Inactive"
+    },
+    {
+      "id": 10,
+      "party": "MedPlus Healthcare",
+      "bankName": "Kotak Mahindra Bank",
+      "address": "Madhapur, Hyderabad",
+      "ifsc": "KKBK0005692",
+      "accountNo": "671234567891",
+      "city": "Hyderabad",
+      "isDefault": false,
+      "status": "Active"
+    },
+    {
+      "id": 11,
+      "party": "Wellness Retail",
+      "bankName": "HDFC Bank",
+      "address": "Viman Nagar, Pune",
+      "ifsc": "HDFC0003397",
+      "accountNo": "50200018476307",
+      "city": "Pune",
+      "isDefault": false,
+      "status": "Inactive"
+    },
+    {
+      "id": 12,
+      "party": "City Care Hospital",
+      "bankName": "ICICI Bank",
+      "address": "Koramangala, Bengaluru",
+      "ifsc": "ICIC0003408",
+      "accountNo": "014205001985",
+      "city": "Bengaluru",
+      "isDefault": false,
+      "status": "Active"
+    },
+    {
+      "id": 13,
+      "party": "Apollo Pharmacy",
+      "bankName": "State Bank of India",
+      "address": "Vashi, Mumbai",
+      "ifsc": "SBIN0008614",
+      "accountNo": "321456789014",
+      "city": "Mumbai",
+      "isDefault": false,
+      "status": "Active"
+    },
+    {
+      "id": 14,
+      "party": "MedPlus Healthcare",
+      "bankName": "Axis Bank",
+      "address": "Secunderabad, Hyderabad",
+      "ifsc": "UTIB0004519",
+      "accountNo": "912345678903",
+      "city": "Hyderabad",
+      "isDefault": false,
+      "status": "Inactive"
+    },
+    {
+      "id": 15,
+      "party": "Wellness Retail",
+      "bankName": "Kotak Mahindra Bank",
+      "address": "Camp, Pune",
+      "ifsc": "KKBK0006725",
+      "accountNo": "671234567892",
+      "city": "Pune",
+      "isDefault": false,
+      "status": "Active"
+    },
+    {
+      "id": 16,
+      "party": "City Care Hospital",
+      "bankName": "HDFC Bank",
+      "address": "HSR Layout, Bengaluru",
+      "ifsc": "HDFC0004782",
+      "accountNo": "50200018476308",
+      "city": "Bengaluru",
+      "isDefault": false,
+      "status": "Active"
+    },
+    {
+      "id": 17,
+      "party": "Apollo Pharmacy",
+      "bankName": "ICICI Bank",
+      "address": "Thane West, Mumbai",
+      "ifsc": "ICIC0005836",
+      "accountNo": "014205001986",
+      "city": "Mumbai",
+      "isDefault": false,
+      "status": "Active"
+    },
+    {
+      "id": 18,
+      "party": "MedPlus Healthcare",
+      "bankName": "State Bank of India",
+      "address": "Kukatpally, Hyderabad",
+      "ifsc": "SBIN0009741",
+      "accountNo": "321456789015",
+      "city": "Hyderabad",
+      "isDefault": false,
+      "status": "Active"
+    },
+    {
+      "id": 19,
+      "party": "Wellness Retail",
+      "bankName": "Axis Bank",
+      "address": "Wakad, Pune",
+      "ifsc": "UTIB0006938",
+      "accountNo": "912345678904",
+      "city": "Pune",
+      "isDefault": false,
+      "status": "Inactive"
+    },
+    {
+      "id": 20,
+      "party": "City Care Hospital",
+      "bankName": "Kotak Mahindra Bank",
+      "address": "Electronic City, Bengaluru",
+      "ifsc": "KKBK0007846",
+      "accountNo": "671234567893",
+      "city": "Bengaluru",
+      "isDefault": false,
+      "status": "Active"
+    },
+    {
+      "id": 21,
+      "party": "Apollo Pharmacy",
+      "bankName": "HDFC Bank",
+      "address": "Borivali West, Mumbai",
+      "ifsc": "HDFC0005893",
+      "accountNo": "50200018476309",
+      "city": "Mumbai",
+      "isDefault": false,
+      "status": "Inactive"
+    },
+    {
+      "id": 22,
+      "party": "MedPlus Healthcare",
+      "bankName": "ICICI Bank",
+      "address": "Gachibowli, Hyderabad",
+      "ifsc": "ICIC0006947",
+      "accountNo": "014205001987",
+      "city": "Hyderabad",
+      "isDefault": false,
+      "status": "Active"
+    },
+    {
+      "id": 23,
+      "party": "Wellness Retail",
+      "bankName": "State Bank of India",
+      "address": "Hadapsar, Pune",
+      "ifsc": "SBIN0008852",
+      "accountNo": "321456789016",
+      "city": "Pune",
+      "isDefault": false,
+      "status": "Active"
+    },
+    {
+      "id": 24,
+      "party": "City Care Hospital",
+      "bankName": "Axis Bank",
+      "address": "Marathahalli, Bengaluru",
+      "ifsc": "UTIB0007964",
+      "accountNo": "912345678905",
+      "city": "Bengaluru",
+      "isDefault": false,
+      "status": "Inactive"
+    },
+    {
+      "id": 25,
+      "party": "Apollo Pharmacy",
+      "bankName": "Kotak Mahindra Bank",
+      "address": "Bandra West, Mumbai",
+      "ifsc": "KKBK0008957",
+      "accountNo": "671234567894",
+      "city": "Mumbai",
+      "isDefault": false,
+      "status": "Active"
+    }
+  ]
+}
