@@ -29,6 +29,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const masterActive = masterNav.some(([, href]) => path === href || path.startsWith(`${href}/`));
   const [masterOpen, setMasterOpen] = useState(masterActive);
   const [auth, setAuth] = useState<boolean | null>(null);
@@ -41,12 +42,25 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     path === "/forgot-password" ||
     path === "/signup";
   useEffect(() => {
-    if (auth === false && !login) router.replace("/");
+    if (auth === false && !login) router.replace("/login");
     if (auth === true && (path === "/" || path === "/login")) router.replace("/dashboard");
   }, [auth, path, login, router]);
   useEffect(() => {
     if (masterActive) setMasterOpen(true);
   }, [masterActive]);
+
+  async function handleLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await authService.logout();
+      setAuth(false);
+      router.replace("/login");
+      router.refresh();
+    } finally {
+      setLoggingOut(false);
+    }
+  }
   if (login) return <>{children}</>;
   if (auth === null)
     return <div className="p-5 text-center">Loading MediStores…</div>;
@@ -85,7 +99,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               {masterNav.map(([label, href, icon]) => (
                 <Link
                   key={href}
-                  onClick={() => setOpen(false)}
+                  onClick={() => { setOpen(false); setMasterOpen(true); }}
                   className={"side-link " + (path === href || path.startsWith(`${href}/`) ? "active" : "")}
                   href={href}
                 >
@@ -109,13 +123,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="nav-section">Account</div>
           <button
             className="side-link w-100 border-0 bg-transparent text-start"
-            onClick={() => {
-              void authService.logout();
-              setAuth(false);
-              router.replace("/");
-            }}
+            onClick={() => void handleLogout()}
+            disabled={loggingOut}
           >
-            <i className="bi bi-box-arrow-right"></i>Sign out
+            <i className="bi bi-box-arrow-right"></i>{loggingOut ? "Signing out..." : "Sign out"}
           </button>
         </aside>
         <main className="main">

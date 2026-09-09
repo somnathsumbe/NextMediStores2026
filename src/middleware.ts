@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PATHS = new Set(["/", "/forgot-password", "/signup"]);
+const PUBLIC_PATHS = new Set(["/", "/login", "/forgot-password", "/signup"]);
 
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (pathname === "/login") return NextResponse.redirect(new URL("/", request.url));
   if (PUBLIC_PATHS.has(pathname)) {
-    if (pathname === "/" && request.cookies.has("medistores_auth")) {
+    if ((pathname === "/" || pathname === "/login") && request.cookies.has("medistores_auth")) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
     return NextResponse.next();
   }
-  if (!request.cookies.has("medistores_auth")) return NextResponse.redirect(new URL("/", request.url));
+  if (!request.cookies.has("medistores_auth")) return NextResponse.redirect(new URL("/login", request.url));
   return NextResponse.next();
 }
 

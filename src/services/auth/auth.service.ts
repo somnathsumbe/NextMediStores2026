@@ -1,4 +1,5 @@
-import type { AuthUser, LoginCredentials, RegistrationData } from "@/types/auth";
+import type { AuthenticatedUser } from "@/models/user.model";
+import type { LoginCredentials, RegistrationData } from "@/types/auth";
 
 const AUTH_KEY = "medistores_auth";
 const USER_KEY = "medistores_user";
@@ -10,26 +11,23 @@ function getStorages(): StorageLike[] {
 }
 
 export const authService = {
-  async login({ identifier, password, rememberMe }: LoginCredentials): Promise<AuthUser | null> {
-    try {
+  async login({ identifier, password, rememberMe }: LoginCredentials): Promise<AuthenticatedUser> {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifier, password, rememberMe }),
       });
-      if (!response.ok || typeof window === "undefined") return null;
-      const user = await response.json() as AuthUser;
+      const result = await response.json() as { message?: string } | AuthenticatedUser;
+      if (!response.ok || typeof window === "undefined") throw new Error("message" in result ? result.message : "Unable to sign in.");
+      const user = result as AuthenticatedUser;
 
       const target = rememberMe ? window.localStorage : window.sessionStorage;
       const other = rememberMe ? window.sessionStorage : window.localStorage;
       target.setItem(AUTH_KEY, "1");
-      target.setItem(USER_KEY, user.username);
+      target.setItem(USER_KEY, JSON.stringify(user));
       other.removeItem(AUTH_KEY);
       other.removeItem(USER_KEY);
       return user;
-    } catch {
-      return null;
-    }
   },
 
   async register(data: RegistrationData): Promise<{ ok: boolean; message?: string }> {
@@ -50,14 +48,17 @@ export const authService = {
     return getStorages().some(storage => storage.getItem(AUTH_KEY) === "1");
   },
 
-  getUser(): AuthUser | null {
+  getCurrentUser(): AuthenticatedUser | null {
     const storage = getStorages().find(item => item.getItem(AUTH_KEY) === "1");
-    const username = storage?.getItem(USER_KEY);
-    return username ? { username } : null;
+    const rawUser = storage?.getItem(USER_KEY);
+    if (!rawUser) return null;
+    try { return JSON.parse(rawUser) as AuthenticatedUser; } catch { return null; }
   },
 
+  getUser(): AuthenticatedUser | null { return this.getCurrentUser(); },
+
   async logout(): Promise<void> {
-    await fetch("/api/auth/logout", { method: "POST" });
+    try { await fetch("/api/auth/logout", { method: "POST" }); } catch { /* Local cleanup must still complete. */ }
     getStorages().forEach(storage => {
       storage.removeItem(AUTH_KEY);
       storage.removeItem(USER_KEY);
