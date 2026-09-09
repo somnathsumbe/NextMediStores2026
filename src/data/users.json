@@ -3,7 +3,7 @@
     "address": "Main Road",
     "drugLicenseNumber": "DL-123",
     "state": "Maharashtra",
-    "password": "secret123",
+    "password": "admin123",
     "businessName": "Test Pharmacy",
     "ownerName": "Test Owner",
     "role": "retailer",
