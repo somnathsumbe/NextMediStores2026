@@ -1,0 +1,31 @@
+{
+  "cities": ["Mumbai", "Pune", "Bengaluru", "Hyderabad", "New Delhi", "Chennai"],
+  "transportTypes": ["Courier", "Road Transport", "Air Cargo", "Rail Cargo", "Local Delivery"],
+  "records": [
+    { "id": 1, "city": "Mumbai", "name": "Shree Logistics", "address": "Andheri East, Mumbai", "type": "Road Transport", "status": "Active" },
+    { "id": 2, "city": "Pune", "name": "Express Pharma Transport", "address": "Bhosari MIDC, Pune", "type": "Courier", "status": "Active" },
+    { "id": 3, "city": "Bengaluru", "name": "MedRoute Express", "address": "Whitefield, Bengaluru", "type": "Air Cargo", "status": "Active" },
+    { "id": 4, "city": "Hyderabad", "name": "CityLink Carriers", "address": "Hitech City, Hyderabad", "type": "Road Transport", "status": "Inactive" },
+    { "id": 5, "city": "New Delhi", "name": "NorthStar Logistics", "address": "Okhla Phase II, New Delhi", "type": "Rail Cargo", "status": "Active" },
+    { "id": 6, "city": "Chennai", "name": "SouthLine Carriers", "address": "Guindy Industrial Estate, Chennai", "type": "Road Transport", "status": "Active" },
+    { "id": 7, "city": "Mumbai", "name": "Western Fleet Services", "address": "Vikhroli West, Mumbai", "type": "Local Delivery", "status": "Active" },
+    { "id": 8, "city": "Pune", "name": "Pune Cargo Link", "address": "Hinjewadi Phase 1, Pune", "type": "Air Cargo", "status": "Inactive" },
+    { "id": 9, "city": "Bengaluru", "name": "Bangalore MedTransit", "address": "Electronic City, Bengaluru", "type": "Courier", "status": "Active" },
+    { "id": 10, "city": "Hyderabad", "name": "Deccan Freight Movers", "address": "Kukatpally, Hyderabad", "type": "Rail Cargo", "status": "Active" },
+    { "id": 11, "city": "New Delhi", "name": "Capital Courier Hub", "address": "Mayur Vihar, New Delhi", "type": "Courier", "status": "Inactive" },
+    { "id": 12, "city": "Chennai", "name": "Harbor Roadways", "address": "Perungudi, Chennai", "type": "Road Transport", "status": "Active" },
+    { "id": 13, "city": "Mumbai", "name": "Metro Medical Movers", "address": "Lower Parel, Mumbai", "type": "Air Cargo", "status": "Active" },
+    { "id": 14, "city": "Pune", "name": "Sahyadri Logistics", "address": "Kharadi, Pune", "type": "Local Delivery", "status": "Active" },
+    { "id": 15, "city": "Bengaluru", "name": "Silicon Valley Cargo", "address": "Yeshwanthpur, Bengaluru", "type": "Rail Cargo", "status": "Inactive" },
+    { "id": 16, "city": "Hyderabad", "name": "Telangana Express", "address": "Begumpet, Hyderabad", "type": "Courier", "status": "Active" },
+    { "id": 17, "city": "New Delhi", "name": "Delhi Pharma Route", "address": "Rohini Sector 10, New Delhi", "type": "Road Transport", "status": "Active" },
+    { "id": 18, "city": "Chennai", "name": "Coromandel Logistics", "address": "Ambattur, Chennai", "type": "Air Cargo", "status": "Active" },
+    { "id": 19, "city": "Mumbai", "name": "Harbor Express", "address": "Chembur, Mumbai", "type": "Courier", "status": "Inactive" },
+    { "id": 20, "city": "Pune", "name": "Deccan Delivery Network", "address": "Aundh, Pune", "type": "Road Transport", "status": "Active" },
+    { "id": 21, "city": "Bengaluru", "name": "Garden City Logistics", "address": "Rajajinagar, Bengaluru", "type": "Local Delivery", "status": "Active" },
+    { "id": 22, "city": "Hyderabad", "name": "Nizam Freight Services", "address": "Miyapur, Hyderabad", "type": "Air Cargo", "status": "Active" },
+    { "id": 23, "city": "New Delhi", "name": "Yamuna Transport Co.", "address": "Patparganj, New Delhi", "type": "Local Delivery", "status": "Inactive" },
+    { "id": 24, "city": "Chennai", "name": "Marina Medical Transit", "address": "T Nagar, Chennai", "type": "Rail Cargo", "status": "Active" },
+    { "id": 25, "city": "Mumbai", "name": "Coastal Pharma Logistics", "address": "Navi Mumbai, Mumbai", "type": "Road Transport", "status": "Active" }
+  ]
+}

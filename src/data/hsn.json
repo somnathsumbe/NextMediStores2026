@@ -1,0 +1,34 @@
+{
+  "categories": [
+    "Medicaments",
+    "Pharmaceutical Preparations",
+    "Medical Devices",
+    "Surgical Instruments",
+    "Vitamins and Supplements",
+    "Ayurvedic Medicines",
+    "Diagnostic Reagents",
+    "Personal Care Products"
+  ],
+  "records": [
+    { "id": 1, "category": "Medicaments", "value": 12 },
+    { "id": 2, "category": "Medicaments", "value": 5 },
+    { "id": 3, "category": "Pharmaceutical Preparations", "value": 18 },
+    { "id": 4, "category": "Pharmaceutical Preparations", "value": 12 },
+    { "id": 5, "category": "Medical Devices", "value": 5 },
+    { "id": 6, "category": "Medical Devices", "value": 18 },
+    { "id": 7, "category": "Surgical Instruments", "value": 12 },
+    { "id": 8, "category": "Surgical Instruments", "value": 5 },
+    { "id": 9, "category": "Vitamins and Supplements", "value": 18 },
+    { "id": 10, "category": "Vitamins and Supplements", "value": 12 },
+    { "id": 11, "category": "Ayurvedic Medicines", "value": 5 },
+    { "id": 12, "category": "Ayurvedic Medicines", "value": 12 },
+    { "id": 13, "category": "Diagnostic Reagents", "value": 18 },
+    { "id": 14, "category": "Diagnostic Reagents", "value": 12 },
+    { "id": 15, "category": "Personal Care Products", "value": 5 },
+    { "id": 16, "category": "Personal Care Products", "value": 18 },
+    { "id": 17, "category": "Medicaments", "value": 2.5 },
+    { "id": 18, "category": "Medical Devices", "value": 7.5 },
+    { "id": 19, "category": "Vitamins and Supplements", "value": 9 },
+    { "id": 20, "category": "Personal Care Products", "value": 13.5 }
+  ]
+}
