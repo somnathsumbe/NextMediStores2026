@@ -42,4 +42,10 @@ npm run build
 npm start
 ```
 
+The root layout contains global concerns only. Authentication routes are under `(auth)` and the shared `AppShell` is provided by `(app)/layout.tsx`. Protected routes use the `medistores_auth` cookie through `src/middleware.ts`.
+
+The recommended deployment is a Node-compatible Next.js host, with the future Java REST API deployed separately. GitHub Pages static export is not compatible with the current middleware and API route handlers.
+
+Copy `.env.example` to `.env.local` for local API configuration. `.env.local` must not be committed.
+
 > The current screens use local mock data so the UI can run independently. Replace `src/lib/mock-service.ts` calls with the Java REST API client when backend endpoints are connected.

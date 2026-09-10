@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import { authService } from "@/services/auth/auth.service";
 
 const nav = [
   ["Dashboard", "/dashboard", "bi-grid-1x2"],
@@ -25,12 +26,25 @@ const masterNav = [
 ];
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const masterActive = masterNav.some(([, href]) => path === href || path.startsWith(`${href}/`));
   const [masterOpen, setMasterOpen] = useState(masterActive);
+  const [auth, setAuth] = useState<boolean | null>(null);
+  useEffect(() => { setAuth(authService.isAuthenticated()); }, [path]);
   useEffect(() => {
     if (masterActive) setMasterOpen(true);
   }, [masterActive]);
+  useEffect(() => { if (auth === false) router.replace("/login"); }, [auth, router]);
+  async function handleLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    await authService.logout();
+    router.replace("/login");
+    router.refresh();
+  }
+  if (auth === null || auth === false) return <div className="p-5 text-center">Loading MediStores...</div>;
   return (
     <>
       <div className="app">
@@ -86,6 +100,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <span>{label}</span>
             </Link>
           ))}
+          <div className="nav-section">Account</div>
+          <button className="side-link w-100 border-0 bg-transparent text-start" onClick={() => void handleLogout()} disabled={loggingOut}>
+            <i className="bi bi-box-arrow-right" />{loggingOut ? "Signing out..." : "Sign out"}
+          </button>
         </aside>
         <main className="main">
           <header className="topbar" aria-label="Application header">

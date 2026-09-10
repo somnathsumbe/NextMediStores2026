@@ -1,0 +1,4 @@
+"use client";
+import { useState } from "react";
+import Link from "next/link";
+export default function ForgotPasswordPage() { const [done, setDone] = useState(false); return <main className="login-wrap"><section className="card login-box"><div className="login-logo"><i className="bi bi-capsule-pill me-2" />MediStores</div><h1 className="h4 mt-4">Forgot password</h1><p className="muted">Enter your username or email to request a reset.</p>{done ? <div className="alert alert-success">Request submitted successfully. This demo does not send email.</div> : <><input className="form-control mb-3" placeholder="Username / Email" /><button className="btn btn-brand w-100" onClick={() => setDone(true)}>Continue</button></>}<Link href="/login" className="d-block text-center mt-3 text-primary small">Back to sign in</Link></section></main>; }
