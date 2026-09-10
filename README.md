@@ -42,10 +42,16 @@ npm run build
 npm start
 ```
 
-The root layout contains global concerns only. Authentication routes are under `(auth)` and the shared `AppShell` is provided by `(app)/layout.tsx`. Protected routes use the `medistores_auth` cookie through `src/middleware.ts`.
+The root layout contains global concerns only. Authentication routes are under `(auth)` and the shared `AppShell` is provided by `(app)/layout.tsx`. The GitHub Pages demo protects routes client-side with localStorage; the server middleware and auth handlers are preserved under the server-only source tree for a future Node deployment.
 
-The recommended deployment is a Node-compatible Next.js host, with the future Java REST API deployed separately. GitHub Pages static export is not compatible with the current middleware and API route handlers.
+The recommended production deployment is a Node-compatible Next.js host, with the future Java REST API deployed separately. GitHub Pages is supported for the frontend-only demo export.
 
 Copy `.env.example` to `.env.local` for local API configuration. `.env.local` must not be committed.
+
+## GitHub Pages demo
+
+This repository also supports a frontend-only static demo at `/NextMediStores2026/`. The export uses localStorage demo authentication; it is not production security. Server auth handlers are kept under `src/server/api` for a future Node deployment and are not part of the static App Router build.
+
+Enable **Settings > Pages > Source: GitHub Actions**. The workflow deploys `out/` to `https://somnathsumbe.github.io/NextMediStores2026/`.
 
 > The current screens use local mock data so the UI can run independently. Replace `src/lib/mock-service.ts` calls with the Java REST API client when backend endpoints are connected.
