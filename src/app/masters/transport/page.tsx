@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui";
-import transportData from "@/assets/data/transport-details.json";
+import transportData from "@/data/transport-details.json";
 
 type Status = "Active" | "Inactive";
 type TransportRecord = { id: number; city: string; name: string; address: string; type: string; status: Status };

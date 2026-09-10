@@ -7,7 +7,6 @@ import AppShell from "@/components/AppShell";
 export const metadata: Metadata = {
   title: { default: "MediStores", template: "%s | MediStores" },
   description: "Medical distribution, inventory, orders and field sales management",
-  manifest: "/manifest.webmanifest",
   icons: { icon: "/assets/images/favicon.png" },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#2856d9" };
