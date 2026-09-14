@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "name": "Shree Logistics",
+    "vehicleNumber": "MH12AB1234",
+    "contactNumber": "9876500000"
+  },
+  {
+    "id": 2,
+    "name": "Express Pharma Transport",
+    "vehicleNumber": "MH14CD5678",
+    "contactNumber": "9876511111"
+  },
+  {
+    "id": 3,
+    "name": "Quick Cart Movers",
+    "vehicleNumber": "MH16EF4321",
+    "contactNumber": "9876522222"
+  },
+  {
+    "id": 4,
+    "name": "MediTransit Logistics",
+    "vehicleNumber": "MH18GH9876",
+    "contactNumber": "9876533333"
+  }
+]

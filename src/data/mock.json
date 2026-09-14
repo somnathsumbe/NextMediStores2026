@@ -199,6 +199,390 @@
       "items": 3,
       "amount": 9240,
       "status": "Pending"
+    },
+    {
+      "id": "SO-1003",
+      "date": "2026-09-07",
+      "party": "Carewell Chemist",
+      "items": 7,
+      "amount": 21480,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1004",
+      "date": "2026-09-08",
+      "party": "Healthway Pharmacy",
+      "items": 4,
+      "amount": 15890,
+      "status": "Shipped"
+    },
+    {
+      "id": "SO-1005",
+      "date": "2026-09-09",
+      "party": "New Life Medical",
+      "items": 9,
+      "amount": 27350,
+      "status": "Pending"
+    },
+    {
+      "id": "SO-1006",
+      "date": "2026-09-10",
+      "party": "Apollo Pharmacy",
+      "items": 6,
+      "amount": 19840,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1007",
+      "date": "2026-09-10",
+      "party": "MedPlus Store",
+      "items": 8,
+      "amount": 24520,
+      "status": "Shipped"
+    },
+    {
+      "id": "SO-1008",
+      "date": "2026-09-11",
+      "party": "Carewell Chemist",
+      "items": 5,
+      "amount": 17600,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1009",
+      "date": "2026-09-11",
+      "party": "Healthway Pharmacy",
+      "items": 10,
+      "amount": 31980,
+      "status": "Pending"
+    },
+    {
+      "id": "SO-1010",
+      "date": "2026-09-12",
+      "party": "New Life Medical",
+      "items": 4,
+      "amount": 14860,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1011",
+      "date": "2026-09-12",
+      "party": "Apollo Pharmacy",
+      "items": 3,
+      "amount": 11270,
+      "status": "Shipped"
+    },
+    {
+      "id": "SO-1012",
+      "date": "2026-09-13",
+      "party": "MedPlus Store",
+      "items": 11,
+      "amount": 38940,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1013",
+      "date": "2026-09-13",
+      "party": "Carewell Chemist",
+      "items": 6,
+      "amount": 20310,
+      "status": "Pending"
+    },
+    {
+      "id": "SO-1014",
+      "date": "2026-09-14",
+      "party": "Healthway Pharmacy",
+      "items": 5,
+      "amount": 19420,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1015",
+      "date": "2026-09-14",
+      "party": "New Life Medical",
+      "items": 7,
+      "amount": 22450,
+      "status": "Shipped"
+    },
+    {
+      "id": "SO-1016",
+      "date": "2026-09-15",
+      "party": "Apollo Pharmacy",
+      "items": 9,
+      "amount": 28670,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1017",
+      "date": "2026-09-15",
+      "party": "MedPlus Store",
+      "items": 4,
+      "amount": 13230,
+      "status": "Pending"
+    },
+    {
+      "id": "SO-1018",
+      "date": "2026-09-16",
+      "party": "Carewell Chemist",
+      "items": 8,
+      "amount": 24960,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1019",
+      "date": "2026-09-16",
+      "party": "Healthway Pharmacy",
+      "items": 6,
+      "amount": 20820,
+      "status": "Shipped"
+    },
+    {
+      "id": "SO-1020",
+      "date": "2026-09-17",
+      "party": "New Life Medical",
+      "items": 12,
+      "amount": 41280,
+      "status": "Pending"
+    },
+    {
+      "id": "SO-1021",
+      "date": "2026-09-17",
+      "party": "Apollo Pharmacy",
+      "items": 5,
+      "amount": 18350,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1022",
+      "date": "2026-09-18",
+      "party": "MedPlus Store",
+      "items": 7,
+      "amount": 23610,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1023",
+      "date": "2026-09-18",
+      "party": "Carewell Chemist",
+      "items": 4,
+      "amount": 14490,
+      "status": "Shipped"
+    },
+    {
+      "id": "SO-1024",
+      "date": "2026-09-19",
+      "party": "Healthway Pharmacy",
+      "items": 9,
+      "amount": 29580,
+      "status": "Pending"
+    },
+    {
+      "id": "SO-1025",
+      "date": "2026-09-19",
+      "party": "New Life Medical",
+      "items": 5,
+      "amount": 18790,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1026",
+      "date": "2026-09-20",
+      "party": "Apollo Pharmacy",
+      "items": 8,
+      "amount": 25560,
+      "status": "Shipped"
+    },
+    {
+      "id": "SO-1027",
+      "date": "2026-09-20",
+      "party": "MedPlus Store",
+      "items": 3,
+      "amount": 11840,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1028",
+      "date": "2026-09-21",
+      "party": "Carewell Chemist",
+      "items": 10,
+      "amount": 34500,
+      "status": "Pending"
+    },
+    {
+      "id": "SO-1029",
+      "date": "2026-09-21",
+      "party": "Healthway Pharmacy",
+      "items": 7,
+      "amount": 22970,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1030",
+      "date": "2026-09-22",
+      "party": "New Life Medical",
+      "items": 6,
+      "amount": 21240,
+      "status": "Shipped"
+    },
+    {
+      "id": "SO-1031",
+      "date": "2026-09-22",
+      "party": "Apollo Pharmacy",
+      "items": 7,
+      "amount": 24680,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1032",
+      "date": "2026-09-23",
+      "party": "MedPlus Store",
+      "items": 8,
+      "amount": 27120,
+      "status": "Pending"
+    },
+    {
+      "id": "SO-1033",
+      "date": "2026-09-23",
+      "party": "Carewell Chemist",
+      "items": 5,
+      "amount": 18130,
+      "status": "Shipped"
+    },
+    {
+      "id": "SO-1034",
+      "date": "2026-09-24",
+      "party": "Healthway Pharmacy",
+      "items": 11,
+      "amount": 36490,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1035",
+      "date": "2026-09-24",
+      "party": "New Life Medical",
+      "items": 4,
+      "amount": 15820,
+      "status": "Pending"
+    },
+    {
+      "id": "SO-1036",
+      "date": "2026-09-25",
+      "party": "Apollo Pharmacy",
+      "items": 9,
+      "amount": 29270,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1037",
+      "date": "2026-09-25",
+      "party": "MedPlus Store",
+      "items": 6,
+      "amount": 20880,
+      "status": "Shipped"
+    },
+    {
+      "id": "SO-1038",
+      "date": "2026-09-26",
+      "party": "Carewell Chemist",
+      "items": 10,
+      "amount": 33740,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1039",
+      "date": "2026-09-26",
+      "party": "Healthway Pharmacy",
+      "items": 5,
+      "amount": 19650,
+      "status": "Pending"
+    },
+    {
+      "id": "SO-1040",
+      "date": "2026-09-27",
+      "party": "New Life Medical",
+      "items": 12,
+      "amount": 42830,
+      "status": "Shipped"
+    },
+    {
+      "id": "SO-1041",
+      "date": "2026-09-27",
+      "party": "Apollo Pharmacy",
+      "items": 8,
+      "amount": 26420,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1042",
+      "date": "2026-09-28",
+      "party": "MedPlus Store",
+      "items": 7,
+      "amount": 23240,
+      "status": "Pending"
+    },
+    {
+      "id": "SO-1043",
+      "date": "2026-09-28",
+      "party": "Carewell Chemist",
+      "items": 4,
+      "amount": 15210,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1044",
+      "date": "2026-09-29",
+      "party": "Healthway Pharmacy",
+      "items": 9,
+      "amount": 28750,
+      "status": "Shipped"
+    },
+    {
+      "id": "SO-1045",
+      "date": "2026-09-29",
+      "party": "New Life Medical",
+      "items": 6,
+      "amount": 20560,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1046",
+      "date": "2026-09-30",
+      "party": "Apollo Pharmacy",
+      "items": 10,
+      "amount": 33190,
+      "status": "Pending"
+    },
+    {
+      "id": "SO-1047",
+      "date": "2026-09-30",
+      "party": "MedPlus Store",
+      "items": 5,
+      "amount": 17380,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1048",
+      "date": "2026-10-01",
+      "party": "Carewell Chemist",
+      "items": 8,
+      "amount": 24830,
+      "status": "Shipped"
+    },
+    {
+      "id": "SO-1049",
+      "date": "2026-10-01",
+      "party": "Healthway Pharmacy",
+      "items": 7,
+      "amount": 22140,
+      "status": "Delivered"
+    },
+    {
+      "id": "SO-1050",
+      "date": "2026-10-02",
+      "party": "New Life Medical",
+      "items": 11,
+      "amount": 39420,
+      "status": "Pending"
     }
   ],
   "purchaseOrders": [

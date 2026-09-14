@@ -6,6 +6,7 @@ import { authService } from "@/services/auth/auth.service";
 
 const nav = [
   ["Dashboard", "/dashboard", "bi-grid-1x2"],
+  ["Orders", "/orders", "bi-bag-plus"],
   ["Sales Orders", "/sales-orders", "bi-cart-check"],
   ["Purchase Orders", "/purchase-orders", "bi-bag-check"],
   ["Transactions", "/transactions", "bi-arrow-left-right"],

@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "customerName": "Apollo Pharmacy",
+    "mobile": "9876543210",
+    "email": "apollo@pharmacy.in",
+    "gstn": "27AAAAA1111A1Z5",
+    "address": "12 Shaniwar Peth, Pune, Maharashtra 411030",
+    "city": "Pune",
+    "state": "Maharashtra"
+  },
+  {
+    "id": 2,
+    "customerName": "MedPlus Store",
+    "mobile": "9822001122",
+    "email": "medplus@store.in",
+    "gstn": "27BBBBB2222B1Z4",
+    "address": "42 Bhosale Nagar, Mumbai, Maharashtra 400024",
+    "city": "Mumbai",
+    "state": "Maharashtra"
+  },
+  {
+    "id": 3,
+    "customerName": "Carewell Chemist",
+    "mobile": "9765432198",
+    "email": "carewell@chemist.in",
+    "gstn": "27CCCCC3333C1Z3",
+    "address": "7 Market Road, Nashik, Maharashtra 422001",
+    "city": "Nashik",
+    "state": "Maharashtra"
+  },
+  {
+    "id": 4,
+    "customerName": "Healthway Pharmacy",
+    "mobile": "9988776655",
+    "email": "healthway@pharma.in",
+    "gstn": "27DDDDD4444D1Z2",
+    "address": "18 MG Road, Nagpur, Maharashtra 440001",
+    "city": "Nagpur",
+    "state": "Maharashtra"
+  },
+  {
+    "id": 5,
+    "customerName": "New Life Medical",
+    "mobile": "9090909090",
+    "email": "newlife@medical.in",
+    "gstn": "27EEEED5555E1Z1",
+    "address": "9 Station Road, Kolhapur, Maharashtra 416001",
+    "city": "Kolhapur",
+    "state": "Maharashtra"
+  }
+]

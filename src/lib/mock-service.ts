@@ -2,11 +2,33 @@ export type AnyRecord = Record<string, any>;
 const KEY = "medistores_db";
 import seed from "../data/mock.json";
 
+function syncSeedData(db: AnyRecord): AnyRecord {
+  const next: AnyRecord = { ...seed, ...db };
+
+  Object.entries(seed).forEach(([key, seedValue]) => {
+    const currentValue = db[key];
+    if (Array.isArray(seedValue) && Array.isArray(currentValue) && currentValue.length < seedValue.length) {
+      next[key] = structuredClone(seedValue);
+    }
+  });
+
+  return next;
+}
+
 function readDb(): AnyRecord {
   if (typeof window === "undefined") return structuredClone(seed);
   const raw = localStorage.getItem(KEY);
   if (!raw) { localStorage.setItem(KEY, JSON.stringify(seed)); return structuredClone(seed); }
-  try { return JSON.parse(raw); } catch { return structuredClone(seed); }
+  try {
+    const parsed = JSON.parse(raw);
+    const synced = syncSeedData(parsed);
+    if (JSON.stringify(parsed) !== JSON.stringify(synced)) {
+      localStorage.setItem(KEY, JSON.stringify(synced));
+    }
+    return synced;
+  } catch {
+    return structuredClone(seed);
+  }
 }
 function writeDb(db: AnyRecord) { localStorage.setItem(KEY, JSON.stringify(db)); }
 
