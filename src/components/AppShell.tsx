@@ -6,23 +6,23 @@ import { authService } from "@/services/auth/auth.service";
 
 const nav = [
   ["Dashboard", "/dashboard", "bi-grid-1x2"],
-  ["Products", "/products", "bi-capsule"],
-  ["Add Product", "/products/new", "bi-plus-circle"],
   ["Sales Orders", "/sales-orders", "bi-cart-check"],
   ["Purchase Orders", "/purchase-orders", "bi-bag-check"],
   ["Transactions", "/transactions", "bi-arrow-left-right"],
   ["Reports", "/reports", "bi-bar-chart"],
   ["Invoice", "/invoice", "bi-receipt"],
+  ["Category", "/masters/category", "bi-tags"],
+  ["Brand Master", "/masters/brand", "bi-award"],
   ["Users", "/users", "bi-person-gear"],
   ["Profile", "/profile", "bi-person-circle"],
 ];
 const masterNav = [
+  ["Product", "/products", "bi-capsule"],
   ["Bank Details", "/bankinfo", "bi-bank"],
   ["Party", "/parties", "bi-people"],
   ["Transport", "/masters/transport", "bi-truck"],
   ["HSN", "/masters/hsn", "bi-upc-scan"],
-  ["Category", "/masters/category", "bi-tags"],
-  ["Brand Master", "/masters/brand", "bi-award"],
+  ["Add Product", "/products/new", "bi-plus-circle"],
 ];
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
