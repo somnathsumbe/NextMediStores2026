@@ -6,7 +6,8 @@ import { authService } from "@/services/auth/auth.service";
 
 const nav = [
   ["Dashboard", "/dashboard", "bi-grid-1x2"],
-  ["Add Product", "/products/add", "bi-plus-circle"],
+  ["Products", "/products", "bi-capsule"],
+  ["Add Product", "/products/new", "bi-plus-circle"],
   ["Sales Orders", "/sales-orders", "bi-cart-check"],
   ["Purchase Orders", "/purchase-orders", "bi-bag-check"],
   ["Transactions", "/transactions", "bi-arrow-left-right"],
@@ -18,7 +19,6 @@ const nav = [
 const masterNav = [
   ["Bank Details", "/bankinfo", "bi-bank"],
   ["Party", "/parties", "bi-people"],
-  ["Products", "/products", "bi-capsule"],
   ["Transport", "/masters/transport", "bi-truck"],
   ["HSN", "/masters/hsn", "bi-upc-scan"],
   ["Category", "/masters/category", "bi-tags"],
