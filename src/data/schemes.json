@@ -1,0 +1,6 @@
+[
+  { "id": 1, "name": "Scheme 1", "description": "5% trade discount" },
+  { "id": 2, "name": "Scheme 2", "description": "10% seasonal discount" },
+  { "id": 3, "name": "Scheme 3", "description": "15% bulk purchase offer" },
+  { "id": 4, "name": "No Scheme", "description": "No additional discount" }
+]
