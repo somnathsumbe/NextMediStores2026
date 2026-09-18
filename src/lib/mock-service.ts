@@ -49,6 +49,7 @@ function createProductSeed(): any[] {
       discountAllow: index % 2 === 0,
       dpcoProduct: index % 5 === 0,
       availableQuantity: quantity,
+      quantity,
       minQuantity: minQty,
       maxQuantity: quantity + 80 + (index % 9) * 10,
       drugGroup: template.group,
@@ -71,8 +72,14 @@ function syncSeedData(db: AnyRecord): AnyRecord {
     }
   });
 
-  if (!Array.isArray(next.products) || next.products.length < 100) {
-    next.products = createProductSeed();
+  const seededProducts = Array.isArray(seed.products) ? seed.products : [];
+  const currentProducts = Array.isArray(next.products) ? next.products : [];
+
+  const hasSyntheticGeneratedProducts = currentProducts.length > seededProducts.length &&
+    currentProducts.every((product: any, index: number) => Number(product.id) === index + 1);
+
+  if (!Array.isArray(next.products) || next.products.length === 0 || hasSyntheticGeneratedProducts) {
+    next.products = structuredClone(seededProducts);
   }
 
   return next;

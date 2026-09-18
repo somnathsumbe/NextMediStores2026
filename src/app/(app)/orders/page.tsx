@@ -221,14 +221,14 @@ export default function OrdersPage() {
             <nav aria-label="breadcrumb" className="mb-2">
               <ol className="breadcrumb small mb-0">
                 <li className="breadcrumb-item"><Link href="/dashboard" className="text-decoration-none">Dashboard</Link></li>
-                <li className="breadcrumb-item active" aria-current="page">Orders</li>
+                <li className="breadcrumb-item active" aria-current="page">Purchase Order</li>
               </ol>
             </nav>
-            <h1 className="h2 mb-1">Order Details</h1>
-            <p className="text-secondary mb-0">Sales order overview with {allOrders.length} records</p>
+            <h1 className="h2 mb-1">Purchase Order Details</h1>
+            <p className="text-secondary mb-0">Purchase order overview with {allOrders.length} records</p>
           </div>
           <Link href="/orders/new" className="btn btn-primary">
-            <i className="bi bi-plus-lg me-2" aria-hidden="true" />New Order
+            <i className="bi bi-plus-lg me-2" aria-hidden="true" />New Purchase Order
           </Link>
         </div>
 
@@ -438,7 +438,7 @@ export default function OrdersPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={10} className="text-center py-4 text-muted">No orders match the current filters.</td>
+                    <td colSpan={10} className="text-center py-4 text-muted">No purchase orders match the current filters.</td>
                   </tr>
                 )}
               </tbody>

@@ -24,6 +24,7 @@ type ProductRecord = {
   saleRateMethod?: "MRP" | "DISCOUNTED" | "COST_PLUS" | "CUSTOM";
   calculateMethod?: "GST_INCLUSIVE" | "GST_EXCLUSIVE" | "MARGIN_BASED" | "FLAT_RATE";
   availableQuantity?: number;
+  quantity?: number;
   minQuantity?: number;
   maxQuantity?: number;
   manufactureDate?: string;
@@ -62,6 +63,7 @@ type ProductForm = {
   saleRateMethod: string;
   calculateMethod: string;
   availableQuantity: string;
+  quantity: string;
   minQuantity: string;
   maxQuantity: string;
   manufactureDate: string;
@@ -150,6 +152,7 @@ function normalizeProduct(item: Partial<ProductRecord>): ProductRecord {
     saleRateMethod: item.saleRateMethod ?? (toLegacyRateMethod(item.saleRateMethod) || undefined),
     calculateMethod: item.calculateMethod ?? undefined,
     availableQuantity: Number(item.availableQuantity ?? 0),
+    quantity: Number(item.quantity ?? 0),
     minQuantity: Number(item.minQuantity ?? 0),
     maxQuantity: Number(item.maxQuantity ?? 0),
     manufactureDate: item.manufactureDate ?? "",
@@ -189,6 +192,7 @@ const initialForm: ProductForm = {
   saleRateMethod: "",
   calculateMethod: "",
   availableQuantity: "0",
+  quantity: "0",
   minQuantity: "0",
   maxQuantity: "0",
   manufactureDate: "",
@@ -228,6 +232,7 @@ function getValidationErrors(form: ProductForm): FormErrors {
   const retailerMargin = Number(form.retailerMargin);
   const sellRate = Number(form.sellRate);
   const availableQuantity = Number(form.availableQuantity);
+  const quantity = Number(form.quantity);
   const minQuantity = Number(form.minQuantity);
   const maxQuantity = Number(form.maxQuantity);
 
@@ -248,6 +253,9 @@ function getValidationErrors(form: ProductForm): FormErrors {
   }
   if (form.availableQuantity !== "" && (Number.isNaN(availableQuantity) || availableQuantity < 0)) {
     errors.availableQuantity = "Available quantity must be greater than or equal to 0.";
+  }
+  if (form.quantity !== "" && (Number.isNaN(quantity) || quantity < 0)) {
+    errors.quantity = "Quantity must be greater than or equal to 0.";
   }
   if (form.minQuantity !== "" && (Number.isNaN(minQuantity) || minQuantity < 0)) {
     errors.minQuantity = "Min quantity must be greater than or equal to 0.";
@@ -316,6 +324,7 @@ export default function NewProductPage() {
       saleRateMethod: normalized.saleRateMethod ?? "",
       calculateMethod: normalized.calculateMethod ?? "",
       availableQuantity: String(normalized.availableQuantity ?? 0),
+      quantity: String(normalized.quantity ?? 0),
       minQuantity: String(normalized.minQuantity ?? 0),
       maxQuantity: String(normalized.maxQuantity ?? 0),
       manufactureDate: normalized.manufactureDate ?? "",
@@ -430,6 +439,7 @@ export default function NewProductPage() {
       saleRateMethod: (form.saleRateMethod || "MRP") as ProductRecord["saleRateMethod"],
       calculateMethod: (form.calculateMethod || "GST_INCLUSIVE") as ProductRecord["calculateMethod"],
       availableQuantity: Number(form.availableQuantity || 0),
+      quantity: Number(form.quantity || 0),
       minQuantity: Number(form.minQuantity || 0),
       maxQuantity: Number(form.maxQuantity || 0),
       manufactureDate: form.manufactureDate,
@@ -860,7 +870,7 @@ export default function NewProductPage() {
                 </div>
 
                 <div className="col-xl-4 col-md-6">
-                  <label htmlFor="unit" className="form-label">Unit <span className="text-danger">*</span></label>
+                  <label htmlFor="unit" className="form-label">Unit Type <span className="text-danger">*</span></label>
                   <input
                     id="unit"
                     list="unit-options"
@@ -875,6 +885,20 @@ export default function NewProductPage() {
                     ))}
                   </datalist>
                   {errors.unit && <div className="invalid-feedback d-block">{errors.unit}</div>}
+                </div>
+
+                <div className="col-xl-4 col-md-6">
+                  <label htmlFor="quantity" className="form-label">Unit Quantity</label>
+                  <input
+                    id="quantity"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className={`form-control ${errors.quantity ? "is-invalid" : ""}`}
+                    value={form.quantity}
+                    onChange={(event) => handleChange("quantity", event.target.value)}
+                  />
+                  {errors.quantity && <div className="invalid-feedback d-block">{errors.quantity}</div>}
                 </div>
 
                 <div className="col-xl-4 col-md-6">

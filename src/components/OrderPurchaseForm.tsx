@@ -22,6 +22,7 @@ type ProductRecord = {
   drugContent: string;
   packingDescription: string;
   availableQuantity: number;
+  quantity?: number;
   minQuantity: number;
   maxQuantity: number;
   drugGroup: string;
@@ -306,7 +307,7 @@ export default function OrderPurchaseForm({ mode, title, subtitle }: { mode: Mod
             <h1 className="h2 mb-1">{title}</h1>
             <p className="text-secondary mb-0">{subtitle}</p>
           </div>
-          <Link href={mode === "order" ? "/orders" : "/purchase-orders"} className="btn btn-outline-secondary">
+          <Link href="/orders" className="btn btn-outline-secondary">
             <i className="bi bi-arrow-left me-2" aria-hidden="true" />Back to List
           </Link>
         </div>
@@ -556,7 +557,7 @@ export default function OrderPurchaseForm({ mode, title, subtitle }: { mode: Mod
                       {isSaving ? "Saving..." : `Save ${titleText}`}
                     </button>
                     <button type="button" className="btn btn-outline-secondary" onClick={handleReset}>Reset</button>
-                    <Link href={mode === "order" ? "/orders" : "/purchase-orders"} className="btn btn-light">Cancel</Link>
+                    <Link href="/orders" className="btn btn-light">Cancel</Link>
                   </div>
                 </div>
               </div>

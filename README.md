@@ -19,7 +19,6 @@ Modern frontend migration of the legacy Angular 9 MediStores application.
 - `profile` → `/profile`
 - `party` → `/parties`
 - `products` → `/products`
-- `purchase` → `/purchase-orders`
 - `sales` → `/sales-orders`
 - `transport` → `/masters/transport`
 - `HSN` → `/masters/hsn`

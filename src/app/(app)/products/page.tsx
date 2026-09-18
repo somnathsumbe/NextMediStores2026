@@ -24,6 +24,7 @@ type ProductRecord = {
   discountAllow: boolean;
   dpcoProduct: boolean;
   availableQuantity: number;
+  quantity: number;
   minQuantity: number;
   maxQuantity: number;
   drugGroup: string;
@@ -170,6 +171,7 @@ function normalizeProduct(item: Partial<ProductRecord>): ProductRecord {
     discountAllow: Boolean(item.discountAllow),
     dpcoProduct: Boolean(item.dpcoProduct),
     availableQuantity: Number(item.availableQuantity ?? 0),
+    quantity: Number(item.quantity ?? 0),
     minQuantity: Number(item.minQuantity ?? 0),
     maxQuantity: Number(item.maxQuantity ?? 0),
     drugGroup: item.drugGroup ?? "",
@@ -267,9 +269,10 @@ function ViewProductModal({
                   <div className="small fw-semibold text-secondary mb-2 text-uppercase">Inventory</div>
                   <div className="d-grid gap-2">
                     <div><div className="small text-secondary">Available Quantity</div><div className="fw-semibold">{qtyText}</div></div>
+                    <div><div className="small text-secondary">Quantity</div><div className="fw-semibold">{product.quantity ?? 0}</div></div>
                     <div><div className="small text-secondary">Min Quantity</div><div className="fw-semibold">{formatQuantityWithUnit(product.minQuantity, product.unit)}</div></div>
                     <div><div className="small text-secondary">Max Quantity</div><div className="fw-semibold">{formatQuantityWithUnit(product.maxQuantity, product.unit)}</div></div>
-                    <div><div className="small text-secondary">Unit</div><div className="fw-semibold">{product.unit || "-"}</div></div>
+                    <div><div className="small text-secondary">Unit Type</div><div className="fw-semibold">{product.unit || "-"}</div></div>
                   </div>
                 </div>
               </div>
