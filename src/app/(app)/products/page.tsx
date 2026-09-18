@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import productsData from "@/data/products.json";
 import { mockService } from "@/lib/mock-service";
 
 type ProductRecord = {
@@ -12,6 +11,9 @@ type ProductRecord = {
   scientificName: string;
   batchNumber: string;
   mrp: number;
+  ptr?: number;
+  gst?: number;
+  retailerMargin?: number;
   sellRate: number;
   manufacturer: string;
   manufactureDate: string;
@@ -44,6 +46,8 @@ type FilterState = {
   drugGroup: string;
   category: string;
   hsn: string;
+  batchNumber: string;
+  maxStock: string;
   stockStatus: StockStatus;
   expiryStatus: ExpiryStatus;
   replacement: YesNoFilter;
@@ -56,6 +60,8 @@ const initialFilters: FilterState = {
   drugGroup: "",
   category: "",
   hsn: "",
+  batchNumber: "",
+  maxStock: "",
   stockStatus: "all",
   expiryStatus: "all",
   replacement: "all",
@@ -77,6 +83,48 @@ function formatDate(dateString: string) {
   const parsed = new Date(`${dateString}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) return "—";
   return parsed.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function formatDisplayDate(dateString: string | null | undefined) {
+  if (!dateString) return "-";
+  const parsed = new Date(`${dateString}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return "-";
+  return parsed.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function formatCurrency(value: number | string | null | undefined) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return "-";
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numericValue);
+}
+
+function formatPercent(value: number | string | null | undefined) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return "-";
+  const formatted = numericValue.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
+  return `${formatted}%`;
+}
+
+function formatBooleanValue(value: boolean | null | undefined) {
+  if (value === true) {
+    return <span className="badge bg-success-subtle text-success rounded-pill px-2 py-1">Yes</span>;
+  }
+  if (value === false) {
+    return <span className="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-1">No</span>;
+  }
+  return "-";
+}
+
+function formatQuantityWithUnit(quantity: number | string | null | undefined, unit: string | null | undefined) {
+  const numericValue = Number(quantity);
+  if (!Number.isFinite(numericValue)) return "-";
+  const nextUnit = unit || "";
+  return `${numericValue} ${nextUnit}`.trim();
 }
 
 function getDaysLeft(dateString: string) {
@@ -109,6 +157,9 @@ function normalizeProduct(item: Partial<ProductRecord>): ProductRecord {
     scientificName: item.scientificName ?? "",
     batchNumber: item.batchNumber ?? "",
     mrp: Number(item.mrp ?? 0),
+    ptr: Number(item.ptr ?? item.sellRate ?? item.mrp ?? 0),
+    gst: Number(item.gst ?? 0),
+    retailerMargin: Number(item.retailerMargin ?? 0),
     sellRate: Number(item.sellRate ?? 0),
     manufacturer: item.manufacturer ?? "",
     manufactureDate: item.manufactureDate ?? "",
@@ -131,19 +182,144 @@ function normalizeProduct(item: Partial<ProductRecord>): ProductRecord {
 }
 
 function mergeProducts(): ProductRecord[] {
-  const merged = [
-    ...(productsData as ProductRecord[]),
-    ...mockService.get<ProductRecord>("products"),
-  ].map(normalizeProduct);
+  const products = mockService.get<ProductRecord>("products");
 
-  const unique = new Map<string, ProductRecord>();
+  return products.map(normalizeProduct);
+}
 
-  merged.forEach((product) => {
-    const key = `${product.productName.toLowerCase()}|${product.batchNumber.toLowerCase()}|${product.manufacturer.toLowerCase()}`;
-    unique.set(key, product);
-  });
+function ProductToast({ message, onClose }: { message: string; onClose: () => void }) {
+  return (
+    <div className="toast-container position-fixed top-0 end-0 p-3" style={{ zIndex: 9999 }}>
+      <div className="toast show align-items-center border-0 shadow-sm" role="alert" aria-live="assertive" aria-atomic="true">
+        <div className="d-flex">
+          <div className="toast-body d-flex align-items-center gap-2 text-dark">
+            <i className="bi bi-check-circle-fill text-success" aria-hidden="true" />
+            <span>{message}</span>
+          </div>
+          <button type="button" className="btn-close me-2 m-auto" aria-label="Close" onClick={onClose} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  return Array.from(unique.values());
+function ViewProductModal({
+  product,
+  onClose,
+  onEdit,
+}: {
+  product: ProductRecord;
+  onClose: () => void;
+  onEdit: (product: ProductRecord) => void;
+}) {
+  const qtyText = formatQuantityWithUnit(product.availableQuantity, product.unit);
+
+  return (
+    <div className="modal fade show d-block" tabIndex={-1} role="dialog" style={{ background: "rgba(0, 0, 0, 0.45)" }}>
+      <div className="modal-dialog modal-dialog-centered modal-xl" role="document" style={{ maxWidth: "1100px" }}>
+        <div className="modal-content border-0 rounded-4 shadow-lg overflow-hidden" style={{ maxHeight: "90vh" }}>
+          <div className="modal-header border-0 bg-light px-3 py-2">
+            <div className="d-flex flex-column flex-grow-1 min-width-0">
+              <div className="d-flex align-items-center gap-2 flex-wrap">
+                <h6 className="modal-title mb-0 fw-semibold text-dark">{product.productName || "-"}</h6>
+                <span className="text-muted small">#{product.id}</span>
+              </div>
+              <div className="text-secondary small mt-1">
+                {(product.manufacturer || "-") + (product.batchNumber ? ` • Batch: ${product.batchNumber}` : "")}
+              </div>
+            </div>
+            <button type="button" className="btn-close ms-2" aria-label="Close" onClick={onClose} />
+          </div>
+
+          <div className="modal-body p-3" style={{ overflowY: "auto", maxHeight: "calc(90vh - 120px)" }}>
+            <div className="row g-3">
+              <div className="col-12 col-md-6 col-xl-4">
+                <div className="border rounded-3 bg-light px-2 py-2 h-100">
+                  <div className="small fw-semibold text-secondary mb-2 text-uppercase">Basic Information</div>
+                  <div className="d-grid gap-2">
+                    <div><div className="small text-secondary">Product Name</div><div className="fw-semibold">{product.productName || "-"}</div></div>
+                    <div><div className="small text-secondary">Manufacturer</div><div className="fw-semibold">{product.manufacturer || "-"}</div></div>
+                    <div><div className="small text-secondary">Scientific Name</div><div className="fw-semibold">{product.scientificName || "-"}</div></div>
+                    <div><div className="small text-secondary">Batch Number</div><div className="fw-semibold">{product.batchNumber || "-"}</div></div>
+                    <div><div className="small text-secondary">Drug Content</div><div className="fw-semibold">{product.drugContent || "-"}</div></div>
+                    <div><div className="small text-secondary">Packing Description</div><div className="fw-semibold">{product.packingDescription || "-"}</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-12 col-md-6 col-xl-4">
+                <div className="border rounded-3 bg-light px-2 py-2 h-100">
+                  <div className="small fw-semibold text-secondary mb-2 text-uppercase">Pricing & Tax</div>
+                  <div className="d-grid gap-2">
+                    <div><div className="small text-secondary">MRP</div><div className="fw-semibold">{formatCurrency(product.mrp)}</div></div>
+                    <div><div className="small text-secondary">GST</div><div className="fw-semibold">{formatPercent(product.gst ?? 0)}</div></div>
+                    <div><div className="small text-secondary">Retailer Margin</div><div className="fw-semibold">{formatPercent(product.retailerMargin)}</div></div>
+                    <div><div className="small text-secondary">PTR</div><div className="fw-semibold">{formatCurrency(product.ptr ?? product.sellRate)}</div></div>
+                    <div><div className="small text-secondary">Sell Rate</div><div className="fw-semibold">{formatCurrency(product.sellRate)}</div></div>
+                    <div><div className="small text-secondary">Rate Method</div><div className="fw-semibold">{product.saleRateMethod || "-"}</div></div>
+                    <div><div className="small text-secondary">Calculation</div><div className="fw-semibold">{product.calculate || "-"}</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-12 col-md-6 col-xl-4">
+                <div className="border rounded-3 bg-light px-2 py-2 h-100">
+                  <div className="small fw-semibold text-secondary mb-2 text-uppercase">Inventory</div>
+                  <div className="d-grid gap-2">
+                    <div><div className="small text-secondary">Available Quantity</div><div className="fw-semibold">{qtyText}</div></div>
+                    <div><div className="small text-secondary">Min Quantity</div><div className="fw-semibold">{formatQuantityWithUnit(product.minQuantity, product.unit)}</div></div>
+                    <div><div className="small text-secondary">Max Quantity</div><div className="fw-semibold">{formatQuantityWithUnit(product.maxQuantity, product.unit)}</div></div>
+                    <div><div className="small text-secondary">Unit</div><div className="fw-semibold">{product.unit || "-"}</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-12 col-md-6 col-xl-4">
+                <div className="border rounded-3 bg-light px-2 py-2 h-100">
+                  <div className="small fw-semibold text-secondary mb-2 text-uppercase">Product Details</div>
+                  <div className="d-grid gap-2">
+                    <div><div className="small text-secondary">Drug Group</div><div className="fw-semibold">{product.drugGroup || "-"}</div></div>
+                    <div><div className="small text-secondary">Category ID</div><div className="fw-semibold">{product.categoryId || "-"}</div></div>
+                    <div><div className="small text-secondary">HSN</div><div className="fw-semibold">{product.hsn || "-"}</div></div>
+                    <div><div className="small text-secondary">Manufacture Date</div><div className="fw-semibold">{formatDisplayDate(product.manufactureDate)}</div></div>
+                    <div><div className="small text-secondary">Expiry Date</div><div className="fw-semibold">{formatDisplayDate(product.expiryDate)}</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-12 col-md-6 col-xl-4">
+                <div className="border rounded-3 bg-light px-2 py-2 h-100">
+                  <div className="small fw-semibold text-secondary mb-2 text-uppercase">Product Settings</div>
+                  <div className="d-grid gap-2">
+                    <div className="d-flex justify-content-between align-items-center gap-2"><span className="small text-secondary">Replacement</span>{formatBooleanValue(product.replacement)}</div>
+                    <div className="d-flex justify-content-between align-items-center gap-2"><span className="small text-secondary">Discount Allow</span>{formatBooleanValue(product.discountAllow)}</div>
+                    <div className="d-flex justify-content-between align-items-center gap-2"><span className="small text-secondary">DPCO Product</span>{formatBooleanValue(product.dpcoProduct)}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-12">
+                <div className="border rounded-3 bg-light px-2 py-2">
+                  <div className="small fw-semibold text-secondary mb-1 text-uppercase">Description</div>
+                  <div className="small text-dark">{product.description || "-"}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="modal-footer border-0 bg-light px-3 py-2 d-flex justify-content-between align-items-center">
+            <small className="text-secondary">Product ID: #{product.id}</small>
+            <div className="d-flex gap-2">
+              <button type="button" className="btn btn-sm btn-primary" onClick={() => onEdit(product)}>
+                <i className="bi bi-pencil-square me-1" aria-hidden="true" />Edit Product
+              </button>
+              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={onClose}>Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function ProductsPage() {
@@ -161,6 +337,16 @@ export default function ProductsPage() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [viewProduct, setViewProduct] = useState<ProductRecord | null>(null);
   const [deleteProduct, setDeleteProduct] = useState<ProductRecord | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimeoutRef = useRef<number | null>(null);
+
+  const showToast = (message: string) => {
+    if (toastTimeoutRef.current) {
+      window.clearTimeout(toastTimeoutRef.current);
+    }
+    setToastMessage(message);
+    toastTimeoutRef.current = window.setTimeout(() => setToastMessage(null), 5000);
+  };
 
   async function copyValue(value: string, label: string) {
     if (!value) return;
@@ -177,7 +363,18 @@ export default function ProductsPage() {
       setLoading(false);
     }, 250);
 
-    return () => window.clearTimeout(timer);
+    const savedToast = window.sessionStorage.getItem("productToast");
+    if (savedToast) {
+      showToast(savedToast);
+      window.sessionStorage.removeItem("productToast");
+    }
+
+    return () => {
+      window.clearTimeout(timer);
+      if (toastTimeoutRef.current) {
+        window.clearTimeout(toastTimeoutRef.current);
+      }
+    };
   }, []);
 
   const summaryCards = useMemo(() => {
@@ -256,6 +453,11 @@ export default function ProductsPage() {
       const matchesDrugGroup = !appliedFilters.drugGroup || product.drugGroup === appliedFilters.drugGroup;
       const matchesCategory = !appliedFilters.category || product.categoryId === appliedFilters.category;
       const matchesHsn = !appliedFilters.hsn || product.hsn === appliedFilters.hsn;
+      const batchNumberValue = (appliedFilters.batchNumber || "").trim().toLowerCase();
+      const matchesBatchNumber = !batchNumberValue || (product.batchNumber || "").toLowerCase().includes(batchNumberValue);
+
+      const maxStockValue = appliedFilters.maxStock === "" ? null : Number(appliedFilters.maxStock);
+      const matchesMaxStock = maxStockValue === null || Number.isNaN(maxStockValue) || Number(product.maxQuantity ?? 0) <= maxStockValue;
 
       const matchesStockStatus = (() => {
         if (appliedFilters.stockStatus === "all") return true;
@@ -286,6 +488,8 @@ export default function ProductsPage() {
         matchesDrugGroup &&
         matchesCategory &&
         matchesHsn &&
+        matchesBatchNumber &&
+        matchesMaxStock &&
         matchesStockStatus &&
         matchesExpiryStatus &&
         matchesReplacement &&
@@ -345,6 +549,7 @@ export default function ProductsPage() {
   };
 
   const handleClearFilters = () => {
+    setSearch("");
     setDraftFilters(initialFilters);
     setAppliedFilters(initialFilters);
     setQuickFilter("all");
@@ -353,6 +558,10 @@ export default function ProductsPage() {
 
   const startIndex = sortedProducts.length === 0 ? 0 : (safePage - 1) * rowsPerPage + 1;
   const endIndex = Math.min(safePage * rowsPerPage, sortedProducts.length);
+
+  const handleEditProduct = (product: ProductRecord) => {
+    router.push(`/products/new?id=${product.id}`);
+  };
 
   const paginationNumbers = useMemo(() => {
     const pages: number[] = [];
@@ -447,21 +656,58 @@ export default function ProductsPage() {
 
         <div className="card border-0 shadow-sm rounded-4 mb-4">
           <div className="card-body p-3 p-lg-4">
-            <div className="d-flex flex-column flex-lg-row align-items-lg-center gap-3">
-              <div className="position-relative flex-grow-1">
-                <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-secondary" aria-hidden="true" />
+            <div className="row g-2 align-items-end">
+              <div className="col-12 col-md-4">
+                <label className="form-label small mb-1">Search Product</label>
+                <div className="position-relative">
+                  <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-secondary" aria-hidden="true" />
+                  <input
+                    type="text"
+                    className="form-control ps-5"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search product..."
+                  />
+                </div>
+              </div>
+
+              <div className="col-12 col-md-3">
+                <label className="form-label small mb-1">Batch Number</label>
                 <input
                   type="text"
-                  className="form-control ps-5"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search product, batch number, scientific name..."
+                  className="form-control"
+                  value={draftFilters.batchNumber}
+                  onChange={(event) => updateDraft("batchNumber", event.target.value)}
+                  placeholder="Enter batch number..."
                 />
               </div>
 
-              <button type="button" className="btn btn-outline-secondary" onClick={() => setShowFilters((current) => !current)}>
-                <i className="bi bi-funnel me-2" aria-hidden="true" />Filters
-              </button>
+              <div className="col-12 col-md-2">
+                <label className="form-label small mb-1">Max Stock</label>
+                <input
+                  type="number"
+                  min="0"
+                  className="form-control"
+                  value={draftFilters.maxStock}
+                  onChange={(event) => updateDraft("maxStock", event.target.value)}
+                  placeholder="200"
+                />
+              </div>
+
+              <div className="col-12 col-md-2 d-flex gap-2">
+                <button type="button" className="btn btn-primary w-100" onClick={handleApplyFilters}>
+                  Apply
+                </button>
+                <button type="button" className="btn btn-outline-secondary w-100" onClick={handleClearFilters}>
+                  Reset
+                </button>
+              </div>
+
+              <div className="col-12 d-flex justify-content-end">
+                <button type="button" className="btn btn-link btn-sm text-decoration-none p-0" onClick={() => setShowFilters((current) => !current)}>
+                  <i className="bi bi-funnel me-1" aria-hidden="true" />{showFilters ? "Hide Filters" : "More Filters"}
+                </button>
+              </div>
             </div>
 
             <div className="mt-3 d-flex flex-wrap gap-2">
@@ -500,22 +746,6 @@ export default function ProductsPage() {
                     />
                     <datalist id="manufacturer-list">
                       {manufacturers.map((item) => (
-                        <option key={item} value={item} />
-                      ))}
-                    </datalist>
-                  </div>
-
-                  <div className="col-lg-3 col-md-6">
-                    <label className="form-label">Drug Group</label>
-                    <input
-                      list="drug-group-list"
-                      className="form-control"
-                      value={draftFilters.drugGroup}
-                      onChange={(event) => updateDraft("drugGroup", event.target.value)}
-                      placeholder="Select group"
-                    />
-                    <datalist id="drug-group-list">
-                      {drugGroups.map((item) => (
                         <option key={item} value={item} />
                       ))}
                     </datalist>
@@ -677,12 +907,12 @@ export default function ProductsPage() {
                     <tr>
                       {[
                         ["productName", "Product"],
-                        ["manufacturer", "Manufacturer"],
+                        ["batchNumber", "Batch Number"],
                         ["mrp", "MRP"],
-                        ["sellRate", "Sell Rate"],
+                        ["sellRate", "PTR"],
                         ["availableQuantity", "Stock"],
+                        ["maxQuantity", "Max Stock"],
                         ["expiryDate", "Expiry"],
-                        ["drugGroup", "Drug Group"],
                       ].map(([key, label]) => (
                         <th key={key} className="fw-semibold text-secondary small text-uppercase" style={{ whiteSpace: "nowrap" }}>
                           <button
@@ -736,29 +966,22 @@ export default function ProductsPage() {
                               </div>
                             </div>
                           </td>
-                          <td>
-                            <div className="d-flex align-items-center gap-2">
-                              <span>{product.manufacturer}</span>
-                              <button type="button" className="btn btn-link btn-sm p-0 text-secondary" aria-label={`Copy manufacturer ${product.manufacturer}`} title="Copy manufacturer" onClick={() => copyValue(product.manufacturer, "Manufacturer")}>
-                                <i className="bi bi-copy" aria-hidden="true" />
-                              </button>
-                            </div>
-                          </td>
+                          <td>{product.batchNumber || "—"}</td>
                           <td>{money(product.mrp)}</td>
-                          <td>{money(product.sellRate)}</td>
+                          <td>{money(product.ptr ?? product.sellRate ?? product.mrp)}</td>
                           <td>
                             <div className="d-flex flex-column align-items-start gap-1">
                               <span className="fw-semibold">{product.availableQuantity}</span>
                               <span className={`badge rounded-pill ${stockBadgeClass}`}>{stockStatus}</span>
                             </div>
                           </td>
+                          <td>{product.maxQuantity}</td>
                           <td>
                             <div className="d-flex flex-column align-items-start gap-1">
                               <span>{formatDate(product.expiryDate)}</span>
                               <span className={`badge rounded-pill ${expiryBadgeClass}`}>{expiryStatus}</span>
                             </div>
                           </td>
-                          <td>{product.drugGroup}</td>
                           <td>
                             <div className="d-flex gap-2">
                               <button type="button" className="btn btn-sm btn-light" onClick={() => setViewProduct(product)} aria-label={`View ${product.productName}`}>
@@ -822,37 +1045,14 @@ export default function ProductsPage() {
         </div>
       </div>
 
+      {toastMessage && <ProductToast message={toastMessage} onClose={() => setToastMessage(null)} />}
+
       {viewProduct && (
-        <div className="modal fade show d-block" tabIndex={-1} role="dialog" style={{ background: "rgba(0, 0, 0, 0.45)" }}>
-          <div className="modal-dialog modal-dialog-centered modal-lg" role="document">
-            <div className="modal-content border-0 rounded-4 shadow-lg">
-              <div className="modal-header border-0 pb-0">
-                <h5 className="modal-title">{viewProduct.productName}</h5>
-                <button type="button" className="btn-close" aria-label="Close" onClick={() => setViewProduct(null)} />
-              </div>
-              <div className="modal-body">
-                <div className="row g-3">
-                  <div className="col-md-6"><strong>Scientific Name:</strong> {viewProduct.scientificName || "—"}</div>
-                  <div className="col-md-6"><strong>Batch:</strong> {viewProduct.batchNumber}</div>
-                  <div className="col-md-6"><strong>Manufacturer:</strong> {viewProduct.manufacturer}</div>
-                  <div className="col-md-6"><strong>Drug Group:</strong> {viewProduct.drugGroup}</div>
-                  <div className="col-md-6"><strong>MRP:</strong> {money(viewProduct.mrp)}</div>
-                  <div className="col-md-6"><strong>Sell Rate:</strong> {money(viewProduct.sellRate)}</div>
-                  <div className="col-md-6"><strong>Available:</strong> {viewProduct.availableQuantity}</div>
-                  <div className="col-md-6"><strong>Min Qty:</strong> {viewProduct.minQuantity}</div>
-                  <div className="col-md-6"><strong>Expiry:</strong> {formatDate(viewProduct.expiryDate)}</div>
-                  <div className="col-md-6"><strong>HSN:</strong> {viewProduct.hsn}</div>
-                  <div className="col-12"><strong>Description:</strong> {viewProduct.description || "—"}</div>
-                </div>
-              </div>
-              <div className="modal-footer border-0 pt-0">
-                <button type="button" className="btn btn-outline-secondary" onClick={() => setViewProduct(null)}>
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ViewProductModal
+          product={viewProduct}
+          onClose={() => setViewProduct(null)}
+          onEdit={handleEditProduct}
+        />
       )}
 
       {deleteProduct && (
@@ -874,8 +1074,11 @@ export default function ProductsPage() {
                   type="button"
                   className="btn btn-danger"
                   onClick={() => {
-                    setProducts((current) => current.filter((item) => item.id !== deleteProduct.id));
+                    const deletedName = deleteProduct.productName;
+                    mockService.remove("products", deleteProduct.id);
+                    setProducts(mergeProducts());
                     setDeleteProduct(null);
+                    showToast(`Product "${deletedName}" deleted successfully.`);
                   }}
                 >
                   Delete

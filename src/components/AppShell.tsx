@@ -23,7 +23,6 @@ const masterNav = [
   ["Party", "/parties", "bi-people"],
   ["Transport", "/masters/transport", "bi-truck"],
   ["HSN", "/masters/hsn", "bi-upc-scan"],
-  ["Add Product", "/products/new", "bi-plus-circle"],
 ];
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
