@@ -12,23 +12,23 @@ type Mode = "order" | "purchase";
 type ProductRecord = {
   id: number;
   productName: string;
-  scientificName: string;
-  batchNumber: string;
+  scientificName?: string;
+  batchNumber?: string;
   mrp: number;
   sellRate: number;
   manufacturer: string;
-  manufactureDate: string;
+  manufactureDate?: string;
   expiryDate: string;
-  drugContent: string;
-  packingDescription: string;
+  drugContent?: string;
+  packingDescription?: string;
   availableQuantity: number;
   quantity?: number;
-  minQuantity: number;
-  maxQuantity: number;
-  drugGroup: string;
-  unit: string;
-  categoryId: string;
-  hsn: string;
+  minQuantity?: number;
+  maxQuantity?: number;
+  drugGroup?: string;
+  unit?: string;
+  categoryId?: string;
+  hsn?: string;
 };
 
 type CustomerRecord = {
@@ -124,8 +124,9 @@ function daysToExpiry(dateString: string) {
 function getProductStatus(product?: ProductRecord) {
   if (!product) return { label: "Unavailable", className: "badge bg-secondary" };
   const remainingDays = daysToExpiry(product.expiryDate);
+  const minQuantity = Number(product.minQuantity ?? 0);
   if (product.availableQuantity <= 0) return { label: "Out of Stock", className: "badge bg-danger" };
-  if (product.availableQuantity <= product.minQuantity) return { label: "Low Stock", className: "badge bg-warning text-dark" };
+  if (product.availableQuantity <= minQuantity) return { label: "Low Stock", className: "badge bg-warning text-dark" };
   if (remainingDays < 0) return { label: "Expired", className: "badge bg-danger" };
   if (remainingDays <= 30) return { label: "Expiring Soon", className: "badge bg-warning text-dark" };
   return { label: "Available", className: "badge bg-success" };
@@ -219,10 +220,11 @@ export default function OrderPurchaseForm({ mode, title, subtitle }: { mode: Mod
 
       const matchesQuery = !query || haystack.includes(query);
       const remainingDays = daysToExpiry(product.expiryDate);
+      const minQuantity = Number(product.minQuantity ?? 0);
       const matchesFilter = (() => {
         if (productFilter === "all") return true;
         if (productFilter === "in-stock") return product.availableQuantity > 0 && remainingDays >= 0;
-        if (productFilter === "low-stock") return product.availableQuantity > 0 && product.availableQuantity <= product.minQuantity && remainingDays >= 0;
+        if (productFilter === "low-stock") return product.availableQuantity > 0 && product.availableQuantity <= minQuantity && remainingDays >= 0;
         if (productFilter === "out-of-stock") return product.availableQuantity <= 0;
         if (productFilter === "valid") return remainingDays > 30;
         if (productFilter === "expiring-30") return remainingDays > 0 && remainingDays <= 30;
