@@ -7,14 +7,11 @@ import { mockService } from "@/lib/mock-service";
 type ProductRecord = {
   id: number;
   productName: string;
-  description: string;
-  scientificName: string;
   batchNumber: string;
   mrp: number;
-  ptr?: number;
-  gst?: number;
-  retailerMargin?: number;
-  sellRate: number;
+  gst: number;
+  retailerMargin: number;
+  ptrSellRate: number;
   manufacturer: string;
   manufactureDate: string;
   expiryDate: string;
@@ -24,19 +21,14 @@ type ProductRecord = {
   discountAllow: boolean;
   dpcoProduct: boolean;
   availableQuantity: number;
-  quantity: number;
-  minQuantity: number;
-  maxQuantity: number;
   drugGroup: string;
-  unit: string;
-  categoryId: string;
-  calculate: string;
-  saleRateMethod: string;
+  unitType: string;
+  unitQuantity: number;
   hsn: string;
 };
 
 type QuickFilter = "all" | "low-stock" | "out-of-stock" | "expiring-soon" | "expired";
-type SortKey = "productName" | "manufacturer" | "mrp" | "sellRate" | "availableQuantity" | "manufactureDate" | "expiryDate";
+type SortKey = "productName" | "manufacturer" | "mrp" | "ptrSellRate" | "availableQuantity" | "manufactureDate" | "expiryDate";
 type SortDirection = "asc" | "desc";
 type StockStatus = "all" | "available" | "low" | "out";
 type ExpiryStatus = "all" | "valid" | "expiring-30" | "expiring-90" | "expired";
@@ -45,7 +37,6 @@ type YesNoFilter = "all" | "yes" | "no";
 type FilterState = {
   manufacturer: string;
   drugGroup: string;
-  category: string;
   hsn: string;
   batchNumber: string;
   maxStock: string;
@@ -59,7 +50,6 @@ type FilterState = {
 const initialFilters: FilterState = {
   manufacturer: "",
   drugGroup: "",
-  category: "",
   hsn: "",
   batchNumber: "",
   maxStock: "",
@@ -146,7 +136,7 @@ function getExpiryStatus(dateString: string): "Valid" | "Expiring Soon" | "Expir
 
 function getStockStatus(product: ProductRecord): "Available" | "Low Stock" | "Out of Stock" {
   if (product.availableQuantity === 0) return "Out of Stock";
-  if (product.availableQuantity <= product.minQuantity) return "Low Stock";
+  if (product.availableQuantity <= 10) return "Low Stock";
   return "Available";
 }
 
@@ -154,14 +144,11 @@ function normalizeProduct(item: Partial<ProductRecord>): ProductRecord {
   return {
     id: Number(item.id ?? Date.now()),
     productName: item.productName ?? "Unknown Product",
-    description: item.description ?? "",
-    scientificName: item.scientificName ?? "",
     batchNumber: item.batchNumber ?? "",
     mrp: Number(item.mrp ?? 0),
-    ptr: Number(item.ptr ?? item.sellRate ?? item.mrp ?? 0),
     gst: Number(item.gst ?? 0),
     retailerMargin: Number(item.retailerMargin ?? 0),
-    sellRate: Number(item.sellRate ?? 0),
+    ptrSellRate: Number(item.ptrSellRate ?? item.mrp ?? 0),
     manufacturer: item.manufacturer ?? "",
     manufactureDate: item.manufactureDate ?? "",
     expiryDate: item.expiryDate ?? "",
@@ -171,14 +158,9 @@ function normalizeProduct(item: Partial<ProductRecord>): ProductRecord {
     discountAllow: Boolean(item.discountAllow),
     dpcoProduct: Boolean(item.dpcoProduct),
     availableQuantity: Number(item.availableQuantity ?? 0),
-    quantity: Number(item.quantity ?? 0),
-    minQuantity: Number(item.minQuantity ?? 0),
-    maxQuantity: Number(item.maxQuantity ?? 0),
     drugGroup: item.drugGroup ?? "",
-    unit: item.unit ?? "",
-    categoryId: item.categoryId ?? "",
-    calculate: item.calculate ?? "",
-    saleRateMethod: item.saleRateMethod ?? "",
+    unitType: item.unitType ?? "",
+    unitQuantity: Number(item.unitQuantity ?? 0),
     hsn: item.hsn ?? "",
   };
 }
@@ -214,7 +196,7 @@ function ViewProductModal({
   onClose: () => void;
   onEdit: (product: ProductRecord) => void;
 }) {
-  const qtyText = formatQuantityWithUnit(product.availableQuantity, product.unit);
+  const qtyText = formatQuantityWithUnit(product.availableQuantity, product.unitType);
 
   return (
     <div className="modal fade show d-block" tabIndex={-1} role="dialog" style={{ background: "rgba(0, 0, 0, 0.45)" }}>
@@ -241,7 +223,6 @@ function ViewProductModal({
                   <div className="d-grid gap-2">
                     <div><div className="small text-secondary">Product Name</div><div className="fw-semibold">{product.productName || "-"}</div></div>
                     <div><div className="small text-secondary">Manufacturer</div><div className="fw-semibold">{product.manufacturer || "-"}</div></div>
-                    <div><div className="small text-secondary">Scientific Name</div><div className="fw-semibold">{product.scientificName || "-"}</div></div>
                     <div><div className="small text-secondary">Batch Number</div><div className="fw-semibold">{product.batchNumber || "-"}</div></div>
                     <div><div className="small text-secondary">Drug Content</div><div className="fw-semibold">{product.drugContent || "-"}</div></div>
                     <div><div className="small text-secondary">Packing Description</div><div className="fw-semibold">{product.packingDescription || "-"}</div></div>
@@ -256,10 +237,7 @@ function ViewProductModal({
                     <div><div className="small text-secondary">MRP</div><div className="fw-semibold">{formatCurrency(product.mrp)}</div></div>
                     <div><div className="small text-secondary">GST</div><div className="fw-semibold">{formatPercent(product.gst ?? 0)}</div></div>
                     <div><div className="small text-secondary">Retailer Margin</div><div className="fw-semibold">{formatPercent(product.retailerMargin)}</div></div>
-                    <div><div className="small text-secondary">PTR</div><div className="fw-semibold">{formatCurrency(product.ptr ?? product.sellRate)}</div></div>
-                    <div><div className="small text-secondary">Sell Rate</div><div className="fw-semibold">{formatCurrency(product.sellRate)}</div></div>
-                    <div><div className="small text-secondary">Rate Method</div><div className="fw-semibold">{product.saleRateMethod || "-"}</div></div>
-                    <div><div className="small text-secondary">Calculation</div><div className="fw-semibold">{product.calculate || "-"}</div></div>
+                    <div><div className="small text-secondary">PTR (Sell Rate)</div><div className="fw-semibold">{formatCurrency(product.ptrSellRate)}</div></div>
                   </div>
                 </div>
               </div>
@@ -269,10 +247,8 @@ function ViewProductModal({
                   <div className="small fw-semibold text-secondary mb-2 text-uppercase">Inventory</div>
                   <div className="d-grid gap-2">
                     <div><div className="small text-secondary">Available Quantity</div><div className="fw-semibold">{qtyText}</div></div>
-                    <div><div className="small text-secondary">Quantity</div><div className="fw-semibold">{product.quantity ?? 0}</div></div>
-                    <div><div className="small text-secondary">Min Quantity</div><div className="fw-semibold">{formatQuantityWithUnit(product.minQuantity, product.unit)}</div></div>
-                    <div><div className="small text-secondary">Max Quantity</div><div className="fw-semibold">{formatQuantityWithUnit(product.maxQuantity, product.unit)}</div></div>
-                    <div><div className="small text-secondary">Unit Type</div><div className="fw-semibold">{product.unit || "-"}</div></div>
+                    <div><div className="small text-secondary">Unit Quantity</div><div className="fw-semibold">{product.unitQuantity ?? 0}</div></div>
+                    <div><div className="small text-secondary">Unit Type</div><div className="fw-semibold">{product.unitType || "-"}</div></div>
                   </div>
                 </div>
               </div>
@@ -282,7 +258,6 @@ function ViewProductModal({
                   <div className="small fw-semibold text-secondary mb-2 text-uppercase">Product Details</div>
                   <div className="d-grid gap-2">
                     <div><div className="small text-secondary">Drug Group</div><div className="fw-semibold">{product.drugGroup || "-"}</div></div>
-                    <div><div className="small text-secondary">Category ID</div><div className="fw-semibold">{product.categoryId || "-"}</div></div>
                     <div><div className="small text-secondary">HSN</div><div className="fw-semibold">{product.hsn || "-"}</div></div>
                     <div><div className="small text-secondary">Manufacture Date</div><div className="fw-semibold">{formatDisplayDate(product.manufactureDate)}</div></div>
                     <div><div className="small text-secondary">Expiry Date</div><div className="fw-semibold">{formatDisplayDate(product.expiryDate)}</div></div>
@@ -301,12 +276,6 @@ function ViewProductModal({
                 </div>
               </div>
 
-              <div className="col-12">
-                <div className="border rounded-3 bg-light px-2 py-2">
-                  <div className="small fw-semibold text-secondary mb-1 text-uppercase">Description</div>
-                  <div className="small text-dark">{product.description || "-"}</div>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -382,7 +351,7 @@ export default function ProductsPage() {
 
   const summaryCards = useMemo(() => {
     const totalProducts = products.length;
-    const lowStock = products.filter((product) => product.availableQuantity > 0 && product.availableQuantity <= product.minQuantity).length;
+    const lowStock = products.filter((product) => product.availableQuantity > 0 && product.availableQuantity <= 10).length;
     const outOfStock = products.filter((product) => product.availableQuantity === 0).length;
     const expiringSoon = products.filter((product) => {
       const days = getDaysLeft(product.expiryDate);
@@ -399,7 +368,7 @@ export default function ProductsPage() {
 
   const quickFilterCounts = useMemo(() => ({
     all: products.length,
-    "low-stock": products.filter((product) => product.availableQuantity > 0 && product.availableQuantity <= product.minQuantity).length,
+    "low-stock": products.filter((product) => product.availableQuantity > 0 && product.availableQuantity <= 10).length,
     "out-of-stock": products.filter((product) => product.availableQuantity === 0).length,
     "expiring-soon": products.filter((product) => {
       const days = getDaysLeft(product.expiryDate);
@@ -416,10 +385,6 @@ export default function ProductsPage() {
     () => Array.from(new Set(products.map((product) => product.drugGroup).filter(Boolean))).sort(),
     [products],
   );
-  const categories = useMemo(
-    () => Array.from(new Set(products.map((product) => product.categoryId).filter(Boolean))).sort(),
-    [products],
-  );
   const hsnCodes = useMemo(
     () => Array.from(new Set(products.map((product) => product.hsn).filter(Boolean))).sort(),
     [products],
@@ -432,7 +397,6 @@ export default function ProductsPage() {
       const searchText = [
         product.productName,
         product.batchNumber,
-        product.scientificName,
         product.manufacturer,
       ]
         .join(" ")
@@ -442,7 +406,7 @@ export default function ProductsPage() {
 
       const matchesQuick = (() => {
         if (quickFilter === "all") return true;
-        if (quickFilter === "low-stock") return product.availableQuantity > 0 && product.availableQuantity <= product.minQuantity;
+        if (quickFilter === "low-stock") return product.availableQuantity > 0 && product.availableQuantity <= 10;
         if (quickFilter === "out-of-stock") return product.availableQuantity === 0;
         if (quickFilter === "expiring-soon") {
           const days = getDaysLeft(product.expiryDate);
@@ -454,18 +418,17 @@ export default function ProductsPage() {
 
       const matchesManufacturer = !appliedFilters.manufacturer || product.manufacturer === appliedFilters.manufacturer;
       const matchesDrugGroup = !appliedFilters.drugGroup || product.drugGroup === appliedFilters.drugGroup;
-      const matchesCategory = !appliedFilters.category || product.categoryId === appliedFilters.category;
       const matchesHsn = !appliedFilters.hsn || product.hsn === appliedFilters.hsn;
       const batchNumberValue = (appliedFilters.batchNumber || "").trim().toLowerCase();
       const matchesBatchNumber = !batchNumberValue || (product.batchNumber || "").toLowerCase().includes(batchNumberValue);
 
       const maxStockValue = appliedFilters.maxStock === "" ? null : Number(appliedFilters.maxStock);
-      const matchesMaxStock = maxStockValue === null || Number.isNaN(maxStockValue) || Number(product.maxQuantity ?? 0) <= maxStockValue;
+      const matchesMaxStock = maxStockValue === null || Number.isNaN(maxStockValue) || product.availableQuantity <= maxStockValue;
 
       const matchesStockStatus = (() => {
         if (appliedFilters.stockStatus === "all") return true;
-        if (appliedFilters.stockStatus === "available") return product.availableQuantity > product.minQuantity;
-        if (appliedFilters.stockStatus === "low") return product.availableQuantity > 0 && product.availableQuantity <= product.minQuantity;
+        if (appliedFilters.stockStatus === "available") return product.availableQuantity > 10;
+        if (appliedFilters.stockStatus === "low") return product.availableQuantity > 0 && product.availableQuantity <= 10;
         if (appliedFilters.stockStatus === "out") return product.availableQuantity === 0;
         return true;
       })();
@@ -489,7 +452,6 @@ export default function ProductsPage() {
         matchesQuick &&
         matchesManufacturer &&
         matchesDrugGroup &&
-        matchesCategory &&
         matchesHsn &&
         matchesBatchNumber &&
         matchesMaxStock &&
@@ -755,22 +717,6 @@ export default function ProductsPage() {
                   </div>
 
                   <div className="col-lg-3 col-md-6">
-                    <label className="form-label">Category</label>
-                    <select
-                      className="form-select"
-                      value={draftFilters.category}
-                      onChange={(event) => updateDraft("category", event.target.value)}
-                    >
-                      <option value="">All</option>
-                      {categories.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="col-lg-3 col-md-6">
                     <label className="form-label">HSN</label>
                     <select
                       className="form-select"
@@ -912,9 +858,9 @@ export default function ProductsPage() {
                         ["productName", "Product"],
                         ["batchNumber", "Batch Number"],
                         ["mrp", "MRP"],
-                        ["sellRate", "PTR"],
+                        ["ptrSellRate", "PTR (Sell Rate)"],
                         ["availableQuantity", "Stock"],
-                        ["maxQuantity", "Max Stock"],
+                        ["availableQuantity", "Stock"],
                         ["expiryDate", "Expiry"],
                       ].map(([key, label]) => (
                         <th key={key} className="fw-semibold text-secondary small text-uppercase" style={{ whiteSpace: "nowrap" }}>
@@ -965,20 +911,20 @@ export default function ProductsPage() {
                                     <i className="bi bi-copy" aria-hidden="true" />
                                   </button>
                                 </div>
-                                <small className="text-secondary">{product.scientificName || "—"}</small>
+                                <small className="text-secondary">{product.drugContent || "—"}</small>
                               </div>
                             </div>
                           </td>
                           <td>{product.batchNumber || "—"}</td>
                           <td>{money(product.mrp)}</td>
-                          <td>{money(product.ptr ?? product.sellRate ?? product.mrp)}</td>
+                          <td>{money(product.ptrSellRate ?? product.mrp)}</td>
                           <td>
                             <div className="d-flex flex-column align-items-start gap-1">
                               <span className="fw-semibold">{product.availableQuantity}</span>
                               <span className={`badge rounded-pill ${stockBadgeClass}`}>{stockStatus}</span>
                             </div>
                           </td>
-                          <td>{product.maxQuantity}</td>
+                          <td>{product.availableQuantity}</td>
                           <td>
                             <div className="d-flex flex-column align-items-start gap-1">
                               <span>{formatDate(product.expiryDate)}</span>

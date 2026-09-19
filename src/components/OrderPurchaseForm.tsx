@@ -15,7 +15,7 @@ type ProductRecord = {
   scientificName?: string;
   batchNumber?: string;
   mrp: number;
-  sellRate: number;
+  ptrSellRate: number;
   manufacturer: string;
   manufactureDate?: string;
   expiryDate: string;
@@ -193,7 +193,7 @@ export default function OrderPurchaseForm({ mode, title, subtitle }: { mode: Mod
     setForm((current) => ({
       ...current,
       mrp: String(selectedProduct.mrp),
-      rate: mode === "order" ? String(selectedProduct.sellRate) : String(selectedProduct.mrp),
+      rate: mode === "order" ? String(selectedProduct.ptrSellRate) : String(selectedProduct.mrp),
       gstAmount: String((Number(selectedProduct.mrp || 0) * 0.12).toFixed(2)),
       unitOfMeasure: selectedProduct.unit || "Numbers",
       deliveryAddress: current.deliveryAddress || selectedPartner?.address || "",

@@ -9,72 +9,43 @@ import { calculatePTR } from "@/utils/product-pricing";
 type ProductRecord = {
   id: number;
   productName: string;
+  batchNumber: string;
+  mrp: number;
+  gst: number;
+  retailerMargin: number;
+  ptrSellRate: number;
   manufacturer: string;
-  manufacturerId?: string;
-  scientificName?: string;
+  manufactureDate: string;
+  expiryDate: string;
   drugContent: string;
-  packingDescription?: string;
-  description?: string;
-  mrp?: number;
-  ptr?: number;
-  gst?: number;
-  gstPercentage?: number;
-  retailerMargin?: number;
-  sellRate?: number;
-  saleRateMethod?: "MRP" | "DISCOUNTED" | "COST_PLUS" | "CUSTOM";
-  calculateMethod?: "GST_INCLUSIVE" | "GST_EXCLUSIVE" | "MARGIN_BASED" | "FLAT_RATE";
-  availableQuantity?: number;
-  quantity?: number;
-  minQuantity?: number;
-  maxQuantity?: number;
-  manufactureDate?: string;
-  expiryDate?: string;
+  packingDescription: string;
+  replacement: boolean;
+  discountAllow: boolean;
+  dpcoProduct: boolean;
+  availableQuantity: number;
   drugGroup: string;
-  drugGroupId?: string;
-  unit: string;
-  unitId?: string;
-  categoryId: string;
+  unitType: string;
+  unitQuantity: number;
   hsn: string;
-  hsnId?: string;
-  replacementAllowed?: boolean;
-  discountAllowed?: boolean;
-  dpcoProduct?: boolean;
-  replacement?: boolean;
-  discountAllow?: boolean;
-  batchNumber?: string;
-  calculate?: string;
-  status?: "ACTIVE" | "INACTIVE";
 };
 
 type ProductForm = {
   productName: string;
   manufacturer: string;
-  manufacturerId: string;
-  scientificName: string;
   batchNumber: string;
   drugContent: string;
   packingDescription: string;
-  description: string;
   mrp: string;
-  ptr: string;
+  ptrSellRate: string;
   gstPercentage: string;
   retailerMargin: string;
-  sellRate: string;
-  saleRateMethod: string;
-  calculateMethod: string;
   availableQuantity: string;
-  quantity: string;
-  minQuantity: string;
-  maxQuantity: string;
+  unitType: string;
+  unitQuantity: string;
   manufactureDate: string;
   expiryDate: string;
   drugGroup: string;
-  drugGroupId: string;
-  unit: string;
-  unitId: string;
-  categoryId: string;
   hsn: string;
-  hsnId: string;
   replacement: boolean;
   discountAllow: boolean;
   dpcoProduct: boolean;
@@ -92,118 +63,48 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "") || "item";
 }
 
-function toLegacyCalculation(value?: string) {
-  switch (value) {
-    case "GST_INCLUSIVE":
-      return "GST Inclusive";
-    case "GST_EXCLUSIVE":
-      return "GST Exclusive";
-    case "MARGIN_BASED":
-      return "Margin Based";
-    case "FLAT_RATE":
-      return "Flat Rate";
-    default:
-      return "";
-  }
-}
-
-function toLegacyRateMethod(value?: string) {
-  switch (value) {
-    case "MRP":
-      return "MRP";
-    case "DISCOUNTED":
-      return "DISCOUNTED";
-    case "COST_PLUS":
-      return "COST_PLUS";
-    case "CUSTOM":
-      return "CUSTOM";
-    case "Discounted":
-      return "DISCOUNTED";
-    case "Cost Plus":
-      return "COST_PLUS";
-    case "Custom":
-      return "CUSTOM";
-    default:
-      return "";
-  }
-}
-
 function normalizeProduct(item: Partial<ProductRecord>): ProductRecord {
-  const manufacturer = item.manufacturer ?? "";
-  const drugGroup = item.drugGroup ?? "";
-  const unit = item.unit ?? "";
-  const hsn = item.hsn ?? item.hsnId ?? "";
-
   return {
     id: Number(item.id ?? Date.now()),
     productName: item.productName ?? "",
-    manufacturer,
-    manufacturerId: item.manufacturerId ?? `MFG-${slugify(manufacturer) || "manufacturer"}`,
-    scientificName: item.scientificName ?? "",
-    drugContent: item.drugContent ?? "",
-    packingDescription: item.packingDescription ?? "",
-    description: item.description ?? "",
+    batchNumber: item.batchNumber ?? "",
     mrp: Number(item.mrp ?? 0),
-    ptr: Number(item.ptr ?? item.sellRate ?? item.mrp ?? 0),
-    gst: Number(item.gst ?? item.gstPercentage ?? 12),
-    gstPercentage: Number(item.gstPercentage ?? item.gst ?? 12),
+    gst: Number(item.gst ?? 0),
     retailerMargin: Number(item.retailerMargin ?? 20),
-    sellRate: Number(item.sellRate ?? item.mrp ?? 0),
-    saleRateMethod: item.saleRateMethod ?? (toLegacyRateMethod(item.saleRateMethod) || undefined),
-    calculateMethod: item.calculateMethod ?? undefined,
-    availableQuantity: Number(item.availableQuantity ?? 0),
-    quantity: Number(item.quantity ?? 0),
-    minQuantity: Number(item.minQuantity ?? 0),
-    maxQuantity: Number(item.maxQuantity ?? 0),
+    ptrSellRate: Number(item.ptrSellRate ?? item.mrp ?? 0),
+    manufacturer: item.manufacturer ?? "",
     manufactureDate: item.manufactureDate ?? "",
     expiryDate: item.expiryDate ?? "",
-    drugGroup,
-    drugGroupId: item.drugGroupId ?? `DG-${slugify(drugGroup) || "drug-group"}`,
-    unit,
-    unitId: item.unitId ?? `U-${slugify(unit) || "unit"}`,
-    categoryId: item.categoryId ?? "",
-    hsn,
-    hsnId: item.hsnId ?? hsn,
-    replacementAllowed: Boolean(item.replacementAllowed ?? item.replacement ?? false),
-    discountAllowed: Boolean(item.discountAllowed ?? item.discountAllow ?? false),
+    drugContent: item.drugContent ?? "",
+    packingDescription: item.packingDescription ?? "",
+    replacement: Boolean(item.replacement ?? false),
+    discountAllow: Boolean(item.discountAllow ?? false),
     dpcoProduct: Boolean(item.dpcoProduct ?? false),
-    replacement: Boolean(item.replacement ?? item.replacementAllowed ?? false),
-    discountAllow: Boolean(item.discountAllow ?? item.discountAllowed ?? false),
-    batchNumber: item.batchNumber ?? "",
-    calculate: item.calculate ?? toLegacyCalculation(item.calculateMethod),
-    status: item.status ?? "ACTIVE",
+    availableQuantity: Number(item.availableQuantity ?? 0),
+    drugGroup: item.drugGroup ?? "",
+    unitType: item.unitType ?? "",
+    unitQuantity: Number(item.unitQuantity ?? 0),
+    hsn: item.hsn ?? "",
   };
 }
 
 const initialForm: ProductForm = {
   productName: "",
   manufacturer: "",
-  manufacturerId: "",
-  scientificName: "",
   batchNumber: "",
   drugContent: "",
   packingDescription: "",
-  description: "",
   mrp: "",
-  ptr: "",
+  ptrSellRate: "",
   gstPercentage: "",
   retailerMargin: "20",
-  sellRate: "",
-  saleRateMethod: "",
-  calculateMethod: "",
   availableQuantity: "0",
-  quantity: "0",
-  minQuantity: "0",
-  maxQuantity: "0",
+  unitType: "",
+  unitQuantity: "0",
   manufactureDate: "",
   expiryDate: "",
   drugGroup: "",
-  drugGroupId: "",
-  unit: "",
-  unitId: "",
-  categoryId: "",
   hsn: "",
-  hsnId: "",
   replacement: false,
   discountAllow: false,
   dpcoProduct: false,
@@ -218,64 +119,56 @@ function getValidationErrors(form: ProductForm): FormErrors {
   const errors: FormErrors = {};
 
   if (!form.productName.trim()) errors.productName = "Product name is required.";
-  if (!form.manufacturer.trim()) errors.manufacturer = "Manufacturer is required.";
+  if (!form.manufacturer.trim()) errors.manufacturer = "Manufacturer is required";
   if (!form.batchNumber.trim()) errors.batchNumber = "Batch number is required.";
   if (!form.drugContent.trim()) errors.drugContent = "Drug content is required.";
   if (!form.drugGroup.trim()) errors.drugGroup = "Drug group is required.";
-  if (!form.unit.trim()) errors.unit = "Unit is required.";
-  if (!form.categoryId.trim()) errors.categoryId = "Category is required.";
+  if (!form.unitType.trim()) errors.unitType = "Unit is required.";
   if (!form.hsn.trim()) errors.hsn = "HSN is required.";
 
+  if (!form.manufactureDate) {
+    errors.manufactureDate = "Manufacture Date is required";
+  } else if (Number.isNaN(parseDate(form.manufactureDate))) {
+    errors.manufactureDate = "Manufacture Date is required";
+  }
+
+  if (!form.expiryDate) {
+    errors.expiryDate = "Expiry Date is required";
+  } else if (Number.isNaN(parseDate(form.expiryDate))) {
+    errors.expiryDate = "Expiry Date is required";
+  } else if (form.manufactureDate && !Number.isNaN(parseDate(form.manufactureDate))) {
+    const manufactureTime = parseDate(form.manufactureDate);
+    const expiryTime = parseDate(form.expiryDate);
+    if (expiryTime <= manufactureTime) {
+      errors.expiryDate = "Expiry Date must be later than Manufacture Date";
+    }
+  }
+
   const mrp = Number(form.mrp);
-  const ptr = Number(form.ptr);
+  const ptrSellRate = Number(form.ptrSellRate);
   const gst = Number(form.gstPercentage);
   const retailerMargin = Number(form.retailerMargin);
-  const sellRate = Number(form.sellRate);
   const availableQuantity = Number(form.availableQuantity);
-  const quantity = Number(form.quantity);
-  const minQuantity = Number(form.minQuantity);
-  const maxQuantity = Number(form.maxQuantity);
+  const unitQuantity = Number(form.unitQuantity);
 
-  if (form.mrp !== "" && (Number.isNaN(mrp) || mrp < 0)) {
-    errors.mrp = "MRP must be a valid number greater than or equal to 0.";
-  }
-  if (form.ptr !== "" && (Number.isNaN(ptr) || ptr < 0)) {
-    errors.ptr = "PTR must be a valid number greater than or equal to 0.";
-  }
+  if (form.mrp === "") errors.mrp = "MRP is required";
+  else if (Number.isNaN(mrp) || mrp < 0) errors.mrp = "MRP must be a valid number greater than or equal to 0.";
+
+  if (form.ptrSellRate === "") errors.ptrSellRate = "PTR (Sell Rate) is required";
+  else if (Number.isNaN(ptrSellRate) || ptrSellRate < 0) errors.ptrSellRate = "PTR (Sell Rate) must be a valid number greater than or equal to 0.";
+
   if (form.gstPercentage !== "" && (Number.isNaN(gst) || gst < 0)) {
     errors.gstPercentage = "GST % must be a valid number greater than or equal to 0.";
   }
   if (form.retailerMargin !== "" && (Number.isNaN(retailerMargin) || retailerMargin < 0 || retailerMargin > 100)) {
     errors.retailerMargin = "Retailer margin must be between 0 and 100.";
   }
-  if (form.sellRate !== "" && (Number.isNaN(sellRate) || sellRate < 0)) {
-    errors.sellRate = "Sell rate must be a valid number greater than or equal to 0.";
-  }
-  if (form.availableQuantity !== "" && (Number.isNaN(availableQuantity) || availableQuantity < 0)) {
-    errors.availableQuantity = "Available quantity must be greater than or equal to 0.";
-  }
-  if (form.quantity !== "" && (Number.isNaN(quantity) || quantity < 0)) {
-    errors.quantity = "Quantity must be greater than or equal to 0.";
-  }
-  if (form.minQuantity !== "" && (Number.isNaN(minQuantity) || minQuantity < 0)) {
-    errors.minQuantity = "Min quantity must be greater than or equal to 0.";
-  }
-  if (form.maxQuantity !== "" && (Number.isNaN(maxQuantity) || maxQuantity < 0)) {
-    errors.maxQuantity = "Max quantity must be greater than or equal to 0.";
-  }
 
-  if (minQuantity > 0 && maxQuantity > 0 && maxQuantity < minQuantity) {
-    errors.maxQuantity = "Max quantity must be greater than or equal to min quantity.";
-    errors.minQuantity = "Min quantity must be less than or equal to max quantity.";
-  }
+  if (form.availableQuantity === "") errors.availableQuantity = "Available Quantity is required";
+  else if (Number.isNaN(availableQuantity) || availableQuantity < 0) errors.availableQuantity = "Available Quantity cannot be negative";
 
-  if (form.manufactureDate && form.expiryDate) {
-    const manufactureTime = parseDate(form.manufactureDate);
-    const expiryTime = parseDate(form.expiryDate);
-    if (!Number.isNaN(manufactureTime) && !Number.isNaN(expiryTime) && expiryTime < manufactureTime) {
-      errors.expiryDate = "Expiry date cannot be earlier than manufacture date.";
-    }
-  }
+  if (form.unitQuantity === "") errors.unitQuantity = "Unit Quantity is required";
+  else if (Number.isNaN(unitQuantity) || unitQuantity <= 0) errors.unitQuantity = "Unit Quantity must be greater than 0";
 
   return errors;
 }
@@ -310,34 +203,22 @@ export default function NewProductPage() {
     setForm({
       productName: normalized.productName,
       manufacturer: normalized.manufacturer,
-      manufacturerId: normalized.manufacturerId ?? "",
-      scientificName: normalized.scientificName ?? "",
       batchNumber: normalized.batchNumber ?? "",
       drugContent: normalized.drugContent,
       packingDescription: normalized.packingDescription ?? "",
-      description: normalized.description ?? "",
       mrp: String(normalized.mrp ?? ""),
-      ptr: String(normalized.ptr ?? ""),
-      gstPercentage: String(normalized.gstPercentage ?? ""),
+      ptrSellRate: String(normalized.ptrSellRate ?? ""),
+      gstPercentage: String(normalized.gst ?? ""),
       retailerMargin: String(normalized.retailerMargin ?? 20),
-      sellRate: String(normalized.sellRate ?? ""),
-      saleRateMethod: normalized.saleRateMethod ?? "",
-      calculateMethod: normalized.calculateMethod ?? "",
       availableQuantity: String(normalized.availableQuantity ?? 0),
-      quantity: String(normalized.quantity ?? 0),
-      minQuantity: String(normalized.minQuantity ?? 0),
-      maxQuantity: String(normalized.maxQuantity ?? 0),
+      unitType: normalized.unitType,
+      unitQuantity: String(normalized.unitQuantity ?? 0),
       manufactureDate: normalized.manufactureDate ?? "",
       expiryDate: normalized.expiryDate ?? "",
       drugGroup: normalized.drugGroup,
-      drugGroupId: normalized.drugGroupId ?? "",
-      unit: normalized.unit,
-      unitId: normalized.unitId ?? "",
-      categoryId: normalized.categoryId,
       hsn: normalized.hsn,
-      hsnId: normalized.hsnId ?? "",
-      replacement: Boolean(normalized.replacementAllowed ?? normalized.replacement ?? false),
-      discountAllow: Boolean(normalized.discountAllowed ?? normalized.discountAllow ?? false),
+      replacement: Boolean(normalized.replacement ?? false),
+      discountAllow: Boolean(normalized.discountAllow ?? false),
       dpcoProduct: Boolean(normalized.dpcoProduct ?? false),
     });
   }, [searchParams]);
@@ -353,12 +234,7 @@ export default function NewProductPage() {
   }, [searchParams]);
 
   const unitOptions = useMemo(() => {
-    const values = getProducts().map((item) => item.unit).filter(Boolean);
-    return Array.from(new Set(values));
-  }, [searchParams]);
-
-  const categoryOptions = useMemo(() => {
-    const values = getProducts().map((item) => item.categoryId).filter(Boolean);
+    const values = getProducts().map((item) => item.unitType).filter(Boolean);
     return Array.from(new Set(values));
   }, [searchParams]);
 
@@ -403,9 +279,9 @@ export default function NewProductPage() {
       mrp: "",
       gstPercentage: "",
       retailerMargin: "",
-      ptr: "",
+      ptrSellRate: "",
     }));
-    setForm((current) => ({ ...current, ptr: String(calculatedPtr) }));
+    setForm((current) => ({ ...current, ptrSellRate: String(calculatedPtr) }));
   };
 
   const handleSave = (event: React.FormEvent<HTMLFormElement>) => {
@@ -417,54 +293,37 @@ export default function NewProductPage() {
       return;
     }
 
-    const legacySaleRateMethod = toLegacyRateMethod(form.saleRateMethod);
-    const legacyCalculateMethod = toLegacyCalculation(form.calculateMethod);
-
     const payload: ProductRecord = {
       id: editingId ?? Date.now(),
       productName: form.productName.trim(),
-      manufacturer: form.manufacturer.trim(),
-      manufacturerId: form.manufacturerId || `MFG-${slugify(form.manufacturer)}`,
-      scientificName: form.scientificName.trim(),
       batchNumber: form.batchNumber.trim(),
-      drugContent: form.drugContent.trim(),
-      packingDescription: form.packingDescription.trim(),
-      description: form.description.trim(),
       mrp: Number(form.mrp || 0),
-      ptr: Number(form.ptr || 0),
       gst: Number(form.gstPercentage || 0),
-      gstPercentage: Number(form.gstPercentage || 0),
       retailerMargin: Number(form.retailerMargin || 20),
-      sellRate: Number(form.sellRate || 0),
-      saleRateMethod: (form.saleRateMethod || "MRP") as ProductRecord["saleRateMethod"],
-      calculateMethod: (form.calculateMethod || "GST_INCLUSIVE") as ProductRecord["calculateMethod"],
-      availableQuantity: Number(form.availableQuantity || 0),
-      quantity: Number(form.quantity || 0),
-      minQuantity: Number(form.minQuantity || 0),
-      maxQuantity: Number(form.maxQuantity || 0),
+      ptrSellRate: Number(form.ptrSellRate || 0),
+      manufacturer: form.manufacturer.trim(),
       manufactureDate: form.manufactureDate,
       expiryDate: form.expiryDate,
-      drugGroup: form.drugGroup.trim(),
-      drugGroupId: form.drugGroupId || `DG-${slugify(form.drugGroup)}`,
-      unit: form.unit.trim(),
-      unitId: form.unitId || `U-${slugify(form.unit)}`,
-      categoryId: form.categoryId.trim(),
-      hsn: form.hsn.trim(),
-      hsnId: form.hsnId || form.hsn.trim(),
-      replacementAllowed: form.replacement,
-      discountAllowed: form.discountAllow,
-      dpcoProduct: form.dpcoProduct,
+      drugContent: form.drugContent.trim(),
+      packingDescription: form.packingDescription.trim(),
       replacement: form.replacement,
       discountAllow: form.discountAllow,
-      calculate: legacyCalculateMethod,
-      status: "ACTIVE",
+      dpcoProduct: form.dpcoProduct,
+      availableQuantity: Number(form.availableQuantity || 0),
+      drugGroup: form.drugGroup.trim(),
+      unitType: form.unitType.trim(),
+      unitQuantity: Number(form.unitQuantity || 0),
+      hsn: form.hsn.trim(),
     };
 
     if (editingId) {
       mockService.update("products", editingId, payload);
       window.sessionStorage.setItem("productToast", "Product updated successfully");
     } else {
-      mockService.save("products", payload);
+      const products = mockService.get<ProductRecord>("products");
+      const nextProducts = [payload, ...products.filter((item) => Number(item.id) !== Number(payload.id))];
+      mockService.reset();
+      nextProducts.forEach((item) => mockService.save("products", item));
       window.sessionStorage.setItem("productToast", "Product created successfully");
     }
 
@@ -579,18 +438,6 @@ export default function NewProductPage() {
                 </div>
 
                 <div className="col-xl-4 col-md-6">
-                  <label htmlFor="scientificName" className="form-label">Scientific Name</label>
-                  <input
-                    id="scientificName"
-                    type="text"
-                    className="form-control"
-                    placeholder="Enter scientific name"
-                    value={form.scientificName}
-                    onChange={(event) => handleChange("scientificName", event.target.value)}
-                  />
-                </div>
-
-                <div className="col-xl-4 col-md-6">
                   <label htmlFor="batchNumber" className="form-label">Batch Number <span className="text-danger">*</span></label>
                   <input
                     id="batchNumber"
@@ -632,17 +479,6 @@ export default function NewProductPage() {
                   />
                 </div>
 
-                <div className="col-12">
-                  <label htmlFor="description" className="form-label">Description</label>
-                  <textarea
-                    id="description"
-                    className="form-control"
-                    rows={3}
-                    placeholder="Enter product description"
-                    value={form.description}
-                    onChange={(event) => handleChange("description", event.target.value)}
-                  />
-                </div>
               </div>
             </div>
           </section>
@@ -657,7 +493,7 @@ export default function NewProductPage() {
               </div>
 
               <div className="row g-3">
-                <div className="col-xl-2 col-md-4 col-sm-6">
+                <div className="col-xl-3 col-md-4 col-sm-6">
                   <label htmlFor="mrp" className="form-label">MRP</label>
                   <div className="input-group">
                     <span className="input-group-text">₹</span>
@@ -675,7 +511,7 @@ export default function NewProductPage() {
                   {errors.mrp && <div className="invalid-feedback d-block">{errors.mrp}</div>}
                 </div>
 
-                <div className="col-xl-2 col-md-4 col-sm-6">
+                <div className="col-xl-3 col-md-4 col-sm-6">
                   <label htmlFor="gstPercentage" className="form-label">GST %</label>
                   <div className="input-group">
                     <input
@@ -693,7 +529,7 @@ export default function NewProductPage() {
                   {errors.gstPercentage && <div className="invalid-feedback d-block">{errors.gstPercentage}</div>}
                 </div>
 
-                <div className="col-xl-2 col-md-4 col-sm-6">
+                <div className="col-xl-3 col-md-4 col-sm-6">
                   <label htmlFor="retailerMargin" className="form-label">Retailer Margin %</label>
                   <div className="input-group">
                     <input
@@ -712,79 +548,30 @@ export default function NewProductPage() {
                   {errors.retailerMargin && <div className="invalid-feedback d-block">{errors.retailerMargin}</div>}
                 </div>
 
-                <div className="col-xl-2 col-md-4 col-sm-6">
-                  <label htmlFor="ptr" className="form-label">PTR</label>
-                  <div className="input-group">
-                    <span className="input-group-text">₹</span>
-                    <input
-                      id="ptr"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className={`form-control ${errors.ptr ? "is-invalid" : ""}`}
-                      placeholder="0.00"
-                      value={form.ptr}
-                      onChange={(event) => handleChange("ptr", event.target.value)}
-                    />
-                  </div>
-                  {errors.ptr && <div className="invalid-feedback d-block">{errors.ptr}</div>}
-                </div>
-
-                <div className="col-xl-2 col-md-4 col-sm-6 d-flex align-items-end">
+                <div className="col-xl-3 col-md-4 col-sm-6 d-flex align-items-end">
                   <button type="button" className="btn btn-outline-primary w-100" onClick={handleCalculatePtr}>
                     Calculate PTR
                   </button>
                 </div>
 
-                <div className="col-xl-2 col-md-4 col-sm-6">
-                  <label htmlFor="sellRate" className="form-label">Sell Rate</label>
+                <div className="col-xl-3 col-md-4 col-sm-6">
+                  <label htmlFor="ptrSellRate" className="form-label">PTR (Sell Rate)</label>
                   <div className="input-group">
                     <span className="input-group-text">₹</span>
                     <input
-                      id="sellRate"
+                      id="ptrSellRate"
                       type="number"
                       min="0"
                       step="0.01"
-                      className={`form-control ${errors.sellRate ? "is-invalid" : ""}`}
+                      className={`form-control ${errors.ptrSellRate ? "is-invalid" : ""}`}
                       placeholder="0.00"
-                      value={form.sellRate}
-                      onChange={(event) => handleChange("sellRate", event.target.value)}
+                      value={form.ptrSellRate}
+                      onChange={(event) => handleChange("ptrSellRate", event.target.value)}
                     />
                   </div>
-                  {errors.sellRate && <div className="invalid-feedback d-block">{errors.sellRate}</div>}
+                  {errors.ptrSellRate && <div className="invalid-feedback d-block">{errors.ptrSellRate}</div>}
                 </div>
 
-                <div className="col-xl-3 col-md-4 col-sm-6">
-                  <label htmlFor="saleRateMethod" className="form-label">Sale Rate Method</label>
-                  <select
-                    id="saleRateMethod"
-                    className="form-select"
-                    value={form.saleRateMethod}
-                    onChange={(event) => handleChange("saleRateMethod", event.target.value)}
-                  >
-                    <option value="">Select method</option>
-                    <option value="MRP">MRP</option>
-                    <option value="DISCOUNTED">Discounted</option>
-                    <option value="COST_PLUS">Cost Plus</option>
-                    <option value="CUSTOM">Custom</option>
-                  </select>
-                </div>
-
-                <div className="col-xl-3 col-md-4 col-sm-6">
-                  <label htmlFor="calculateMethod" className="form-label">Calculate</label>
-                  <select
-                    id="calculateMethod"
-                    className="form-select"
-                    value={form.calculateMethod}
-                    onChange={(event) => handleChange("calculateMethod", event.target.value)}
-                  >
-                    <option value="">Select calculation</option>
-                    <option value="GST_INCLUSIVE">GST Inclusive</option>
-                    <option value="GST_EXCLUSIVE">GST Exclusive</option>
-                    <option value="MARGIN_BASED">Margin Based</option>
-                    <option value="FLAT_RATE">Flat Rate</option>
-                  </select>
-                </div>
               </div>
             </div>
           </section>
@@ -800,7 +587,7 @@ export default function NewProductPage() {
 
               <div className="row g-3">
                 <div className="col-xl-4 col-md-6">
-                  <label htmlFor="availableQuantity" className="form-label">Available Quantity</label>
+                  <label htmlFor="availableQuantity" className="form-label">Available Quantity <span className="text-danger">*</span></label>
                   <input
                     id="availableQuantity"
                     type="number"
@@ -812,31 +599,6 @@ export default function NewProductPage() {
                   {errors.availableQuantity && <div className="invalid-feedback d-block">{errors.availableQuantity}</div>}
                 </div>
 
-                <div className="col-xl-4 col-md-6">
-                  <label htmlFor="minQuantity" className="form-label">Min Quantity</label>
-                  <input
-                    id="minQuantity"
-                    type="number"
-                    min="0"
-                    className={`form-control ${errors.minQuantity ? "is-invalid" : ""}`}
-                    value={form.minQuantity}
-                    onChange={(event) => handleChange("minQuantity", event.target.value)}
-                  />
-                  {errors.minQuantity && <div className="invalid-feedback d-block">{errors.minQuantity}</div>}
-                </div>
-
-                <div className="col-xl-4 col-md-6">
-                  <label htmlFor="maxQuantity" className="form-label">Max Quantity</label>
-                  <input
-                    id="maxQuantity"
-                    type="number"
-                    min="0"
-                    className={`form-control ${errors.maxQuantity ? "is-invalid" : ""}`}
-                    value={form.maxQuantity}
-                    onChange={(event) => handleChange("maxQuantity", event.target.value)}
-                  />
-                  {errors.maxQuantity && <div className="invalid-feedback d-block">{errors.maxQuantity}</div>}
-                </div>
               </div>
             </div>
           </section>
@@ -870,53 +632,35 @@ export default function NewProductPage() {
                 </div>
 
                 <div className="col-xl-4 col-md-6">
-                  <label htmlFor="unit" className="form-label">Unit Type <span className="text-danger">*</span></label>
+                  <label htmlFor="unitType" className="form-label">Unit Type <span className="text-danger">*</span></label>
                   <input
-                    id="unit"
+                    id="unitType"
                     list="unit-options"
-                    className={`form-control ${errors.unit ? "is-invalid" : ""}`}
+                    className={`form-control ${errors.unitType ? "is-invalid" : ""}`}
                     placeholder="Select unit"
-                    value={form.unit}
-                    onChange={(event) => handleChange("unit", event.target.value)}
+                    value={form.unitType}
+                    onChange={(event) => handleChange("unitType", event.target.value)}
                   />
                   <datalist id="unit-options">
                     {unitOptions.map((option) => (
                       <option key={option} value={option} />
                     ))}
                   </datalist>
-                  {errors.unit && <div className="invalid-feedback d-block">{errors.unit}</div>}
+                  {errors.unitType && <div className="invalid-feedback d-block">{errors.unitType}</div>}
                 </div>
 
                 <div className="col-xl-4 col-md-6">
-                  <label htmlFor="quantity" className="form-label">Unit Quantity</label>
+                  <label htmlFor="unitQuantity" className="form-label">Unit Quantity <span className="text-danger">*</span></label>
                   <input
-                    id="quantity"
+                    id="unitQuantity"
                     type="number"
                     min="0"
                     step="0.01"
-                    className={`form-control ${errors.quantity ? "is-invalid" : ""}`}
-                    value={form.quantity}
-                    onChange={(event) => handleChange("quantity", event.target.value)}
+                    className={`form-control ${errors.unitQuantity ? "is-invalid" : ""}`}
+                    value={form.unitQuantity}
+                    onChange={(event) => handleChange("unitQuantity", event.target.value)}
                   />
-                  {errors.quantity && <div className="invalid-feedback d-block">{errors.quantity}</div>}
-                </div>
-
-                <div className="col-xl-4 col-md-6">
-                  <label htmlFor="categoryId" className="form-label">Category ID <span className="text-danger">*</span></label>
-                  <input
-                    id="categoryId"
-                    list="category-options"
-                    className={`form-control ${errors.categoryId ? "is-invalid" : ""}`}
-                    placeholder="Select category"
-                    value={form.categoryId}
-                    onChange={(event) => handleChange("categoryId", event.target.value)}
-                  />
-                  <datalist id="category-options">
-                    {categoryOptions.map((option) => (
-                      <option key={option} value={option} />
-                    ))}
-                  </datalist>
-                  {errors.categoryId && <div className="invalid-feedback d-block">{errors.categoryId}</div>}
+                  {errors.unitQuantity && <div className="invalid-feedback d-block">{errors.unitQuantity}</div>}
                 </div>
 
                 <div className="col-xl-4 col-md-6">
@@ -938,18 +682,19 @@ export default function NewProductPage() {
                 </div>
 
                 <div className="col-xl-4 col-md-6">
-                  <label htmlFor="manufactureDate" className="form-label">Manufacture Date</label>
+                  <label htmlFor="manufactureDate" className="form-label">Manufacture Date <span className="text-danger">*</span></label>
                   <input
                     id="manufactureDate"
                     type="date"
-                    className="form-control"
+                    className={`form-control ${errors.manufactureDate ? "is-invalid" : ""}`}
                     value={form.manufactureDate}
                     onChange={(event) => handleChange("manufactureDate", event.target.value)}
                   />
+                  {errors.manufactureDate && <div className="invalid-feedback d-block">{errors.manufactureDate}</div>}
                 </div>
 
                 <div className="col-xl-4 col-md-6">
-                  <label htmlFor="expiryDate" className="form-label">Expiry Date</label>
+                  <label htmlFor="expiryDate" className="form-label">Expiry Date <span className="text-danger">*</span></label>
                   <input
                     id="expiryDate"
                     type="date"
