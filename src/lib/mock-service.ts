@@ -15,7 +15,9 @@ function syncSeedData(db: AnyRecord): AnyRecord {
     productsById.set(Number(product.id), structuredClone(product));
   });
   currentProducts.forEach((product: AnyRecord) => {
-    productsById.set(Number(product.id), structuredClone(product));
+    const id = Number(product.id);
+    const seedProduct = productsById.get(id);
+    productsById.set(id, seedProduct ? { ...seedProduct, ...structuredClone(product) } : structuredClone(product));
   });
   next.products = Array.from(productsById.values());
 
