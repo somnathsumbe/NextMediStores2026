@@ -3,6 +3,7 @@ import path from "path";
 import type { Product } from "@/types/product";
 
 const productsFilePath = path.join(process.cwd(), "src", "data", "products.json");
+export const dynamic = "force-static";
 
 async function readProducts(): Promise<Product[]> {
   const file = await fs.readFile(productsFilePath, "utf-8");
@@ -12,6 +13,11 @@ async function readProducts(): Promise<Product[]> {
 
 async function writeProducts(products: Product[]) {
   await fs.writeFile(productsFilePath, `${JSON.stringify(products, null, 2)}\n`, "utf-8");
+}
+
+export async function generateStaticParams() {
+  const products = await readProducts();
+  return products.map((product) => ({ id: String(product.id) }));
 }
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {

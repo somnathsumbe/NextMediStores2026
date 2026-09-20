@@ -3,6 +3,7 @@ import path from "path";
 import type { Product } from "@/types/product";
 
 const productsFilePath = path.join(process.cwd(), "src", "data", "products.json");
+export const dynamic = "force-static";
 
 async function readProducts(): Promise<Product[]> {
   try {

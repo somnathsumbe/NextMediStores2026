@@ -2,474 +2,110 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui";
-import bankData from "@/data/bankinfo.json";
-type BankRecord = {
-  id: number;
-  party: string;
-  bankName: string;
-  address: string;
-  ifsc: string;
-  accountNo: string;
-  city: string;
-  isDefault: boolean;
-  status: "Active" | "Inactive";
-};
-type BankForm = Omit<BankRecord, "id">;
-type StatusFilter = "All" | "Active" | "Inactive";
-type DefaultFilter = "All" | "Default" | "Non-Default";
-const PAGE_SIZE_OPTIONS = [5, 10, 20];
 
-const emptyForm: BankForm = {
-  party: "",
-  bankName: "",
-  address: "",
-  ifsc: "",
-  accountNo: "",
-  city: "",
-  isDefault: false,
-  status: "Active",
-};
-const initialRecords: BankRecord[] = bankData.records.map((record) => ({
-  ...record,
-  isDefault: record.isDefault ?? false,
-  status: (record.status ?? "Active") as BankRecord["status"],
-}));
+type AccountType = "Savings" | "Current" | "OD" | "CC";
+type BankRecord = { id: number; party: string; bankName: string; address: string; state: string; city: string; ifsc: string; accountNo: string; accountType?: AccountType; isDefault: boolean; status: "Active" | "Inactive" };
+type Store = { parties: string[]; banks: string[]; cities: string[]; records: BankRecord[] };
+type FormState = Omit<BankRecord, "id">;
+const pageSizes = [5, 10, 20];
+const emptyForm: FormState = { party: "", bankName: "", address: "", state: "Maharashtra", city: "Ahilyanagar", ifsc: "", accountNo: "", accountType: undefined, isDefault: false, status: "Active" };
 
-function maskAccount(accountNo: string) {
-  return accountNo.length > 4
-    ? `${"•".repeat(Math.max(0, accountNo.length - 4))}${accountNo.slice(-4)}`
-    : accountNo;
+function maskAccount(value: string) { return value.length > 4 ? `XXXX XXXX ${value.slice(-4)}` : value; }
+function errorFor(form: FormState, records: BankRecord[], editingId: number | null) {
+  const errors: Record<string, string> = {};
+  if (!form.party) errors.party = "Party is required.";
+  if (!form.bankName) errors.bankName = "Bank name is required.";
+  if (!form.address.trim() || form.address.trim().length < 5) errors.address = "Address must contain at least 5 characters.";
+  if (!form.state) errors.state = "State is required.";
+  if (!form.city) errors.city = "City is required.";
+  if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.ifsc)) errors.ifsc = "Enter a valid 11-character IFSC code.";
+  if (!/^[0-9]{9,18}$/.test(form.accountNo)) errors.accountNo = "Account number must contain 9–18 digits.";
+  if (records.some((record) => record.id !== editingId && record.party === form.party && record.bankName === form.bankName && record.accountNo === form.accountNo)) errors.accountNo = "Bank account already exists for this Party.";
+  return errors;
 }
 
 export default function BankInfo() {
-  const [records, setRecords] = useState(initialRecords);
-  const [form, setForm] = useState<BankForm>(emptyForm);
+  const [store, setStore] = useState<Store>({ parties: [], banks: [], cities: [], records: [] });
+  const [form, setForm] = useState<FormState>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [search, setSearch] = useState("");
-  const [partyFilter, setPartyFilter] = useState("");
-  const [bankFilter, setBankFilter] = useState("");
-  const [cityFilter, setCityFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
-  const [defaultFilter, setDefaultFilter] = useState<DefaultFilter>("All");
-  const [appliedFilters, setAppliedFilters] = useState({ party: "", bank: "", city: "", status: "All" as StatusFilter, defaultValue: "All" as DefaultFilter });
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [toast, setToast] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
   const [viewing, setViewing] = useState<BankRecord | null>(null);
-  const filteredRecords = useMemo(() => {
+  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState({ party: "", bank: "", state: "", city: "", status: "All", defaultValue: "All" });
+  const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [touched, setTouched] = useState<Partial<Record<keyof FormState, boolean>>>({});
+  const [toast, setToast] = useState<string | null>(null);
+  const [modal, setModal] = useState<"party" | "bank" | "city" | null>(null);
+  const [masterName, setMasterName] = useState("");
+
+  async function load() { setLoading(true); try { const response = await fetch("/api/bank-details", { cache: "no-store" }); if (!response.ok) throw new Error(); setStore(await response.json()); } catch { setToast("Unable to load bank details. Please try again."); } finally { setLoading(false); } }
+  useEffect(() => { load(); }, []);
+  useEffect(() => { setPage(1); }, [search, filters, pageSize]);
+
+  const cities = useMemo(() => store.cities, [store.cities]);
+  const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return records.filter((record) => {
-      const matchesSearch = !query || [record.party, record.bankName, record.accountNo, record.city, record.ifsc].some((value) => value.toLowerCase().includes(query));
-      return matchesSearch && (!appliedFilters.party || record.party === appliedFilters.party) && (!appliedFilters.bank || record.bankName === appliedFilters.bank) && (!appliedFilters.city || record.city === appliedFilters.city) && (appliedFilters.status === "All" || record.status === appliedFilters.status) && (appliedFilters.defaultValue === "All" || (appliedFilters.defaultValue === "Default" ? record.isDefault : !record.isDefault));
+    return store.records.filter((record) => {
+      const matchSearch = !query || [record.party, record.bankName, record.ifsc, record.city, record.accountNo.slice(-4)].some((value) => value.toLowerCase().includes(query));
+      return matchSearch && (!filters.party || record.party === filters.party) && (!filters.bank || record.bankName === filters.bank) && (!filters.state || record.state === filters.state) && (!filters.city || record.city === filters.city) && (filters.status === "All" || record.status === filters.status) && (filters.defaultValue === "All" || (filters.defaultValue === "Yes" ? record.isDefault : !record.isDefault));
     });
-  }, [records, search, appliedFilters]);
-  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / pageSize));
-  const paginatedRecords = filteredRecords.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  }, [store.records, search, filters]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const states = Array.from(new Set(store.records.map((record) => record.state).concat("Maharashtra")));
+  const summary = { total: store.records.length, active: store.records.filter((record) => record.status === "Active").length, inactive: store.records.filter((record) => record.status === "Inactive").length, defaults: store.records.filter((record) => record.isDefault).length };
+  const validationErrors = errorFor(form, store.records, editingId);
+  const canSave = Object.keys(validationErrors).length === 0 && !saving;
 
-  useEffect(() => { setCurrentPage(1); }, [search, appliedFilters, pageSize]);
-  useEffect(() => { setCurrentPage((page) => Math.min(page, totalPages)); }, [totalPages]);
-
-  function showToast(type: "success" | "error", message: string) {
-    setToast({ type, message });
-    window.setTimeout(() => setToast(null), 3200);
+  function update(field: keyof FormState, value: string | boolean | undefined) { setForm((current) => ({ ...current, [field]: field === "ifsc" ? String(value).replace(/\s/g, "").toUpperCase() : field === "accountNo" ? String(value).replace(/\D/g, "") : value })); setTouched((current) => ({ ...current, [field]: true })); }
+  function reset() { setForm(emptyForm); setEditingId(null); setTouched({}); }
+  async function submit(event: FormEvent) { event.preventDefault(); setTouched({ party: true, bankName: true, address: true, state: true, city: true, ifsc: true, accountNo: true }); const errors = errorFor(form, store.records, editingId); if (Object.keys(errors).length) { setToast(Object.values(errors)[0]); return; } setSaving(true); try { const response = await fetch(editingId ? `/api/bank-details/${editingId}` : "/api/bank-details", { method: editingId ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, address: form.address.trim(), ifsc: form.ifsc.toUpperCase(), accountNo: form.accountNo.trim() }) }); if (!response.ok) { const body = await response.json(); throw new Error(body.error); } await load(); reset(); setToast(editingId ? "Bank details updated successfully." : "Bank details saved successfully."); } catch (error) { setToast(error instanceof Error ? error.message : "Unable to save bank details. Please try again."); } finally { setSaving(false); } }
+  function edit(record: BankRecord, copy = false) { setForm({ party: record.party, bankName: record.bankName, address: record.address, state: record.state, city: record.city, ifsc: copy ? "" : record.ifsc, accountNo: "", accountType: record.accountType, isDefault: copy ? false : record.isDefault, status: copy ? "Active" : record.status }); setEditingId(copy ? null : record.id); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  async function action(id: number, actionName: "default" | "status") { try { const response = await fetch(`/api/bank-details/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: actionName }) }); if (!response.ok) throw new Error(); await load(); setToast(actionName === "default" ? "Default account updated." : "Account status updated."); } catch { setToast("Unable to update this account."); } }
+  async function addMaster() { const name = masterName.trim(); if (!name) return; try { const response = await fetch("/api/bank-details", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ masterType: modal, name }) }); if (!response.ok) throw new Error(); await load(); if (modal === "party") update("party", name); if (modal === "bank") update("bankName", name); if (modal === "city") update("city", name); setModal(null); setMasterName(""); setToast(`${modal} added successfully.`); } catch { setToast(`Unable to add ${modal}.`); } }
+  function clearFilters() { setFilters({ party: "", bank: "", state: "", city: "", status: "All", defaultValue: "All" }); setSearch(""); }
+  async function copyValue(value: string, label: string) { try { await navigator.clipboard.writeText(value); setToast(`${label} copied.`); } catch { setToast(`Unable to copy ${label.toLowerCase()}.`); } }
+  function exportCsv() {
+    const headers = ["Party", "Account No.", "Bank Name", "IFSC"];
+    const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const rows = filtered.map((record) => [record.party, record.accountNo, record.bankName, record.ifsc]);
+    const csv = [headers, ...rows].map((row) => row.map(escape).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a"); link.href = url; link.download = "bank-details.csv"; link.click(); URL.revokeObjectURL(url);
+    setToast(`${filtered.length} account records exported to Excel/CSV.`);
   }
-  function updateField(field: keyof BankForm, value: string) {
-    setForm((current) => ({
-      ...current,
-      [field]: field === "ifsc" ? value.toUpperCase() : value,
-    }));
-  }
-  function resetForm() {
-    setForm(emptyForm);
-    setEditingId(null);
-  }
-  function applyFilters() {
-    setAppliedFilters({ party: partyFilter, bank: bankFilter, city: cityFilter, status: statusFilter, defaultValue: defaultFilter });
-  }
-  function clearFilters() {
-    setPartyFilter(""); setBankFilter(""); setCityFilter(""); setStatusFilter("All"); setDefaultFilter("All");
-    setAppliedFilters({ party: "", bank: "", city: "", status: "All", defaultValue: "All" });
-  }
-  function setDefault(record: BankRecord) {
-    setRecords((current) => current.map((item) => item.party === record.party ? { ...item, isDefault: item.id === record.id } : item));
-    showToast("success", `${record.bankName} is now the default account for ${record.party}.`);
-  }
-  function toggleStatus(record: BankRecord) {
-    setRecords((current) => current.map((item) => item.id === record.id ? { ...item, status: item.status === "Active" ? "Inactive" : "Active" } : item));
-    showToast("success", `${record.bankName} marked ${record.status === "Active" ? "Inactive" : "Active"}.`);
-  }
-  async function copyValue(value: string, label: string) {
-    try {
-      await navigator.clipboard.writeText(value);
-      showToast("success", `${label} copied to clipboard.`);
-    } catch {
-      showToast("error", `Unable to copy ${label.toLowerCase()}.`);
-    }
-  }
-  function exportExcel() {
-    const escapeCell = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-    const headers = ["Party", "Bank Name", "Account No.", "City", "Address", "IFSC Code", "Default", "Status"];
-    const rows = filteredRecords.map((record) => [record.party, record.bankName, maskAccount(record.accountNo), record.city, record.address, record.ifsc, record.isDefault ? "Default" : "Non-Default", record.status]);
-    const table = `<table><thead><tr>${headers.map((header) => `<th>${escapeCell(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeCell(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
-    const blob = new Blob([`<html><head><meta charset="utf-8"></head><body>${table}</body></html>`], { type: "application/vnd.ms-excel" });
-    const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "bank-details.xls"; link.click(); URL.revokeObjectURL(url);
-    showToast("success", `${filteredRecords.length} filtered records exported.`);
-  }
-  function submitForm(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if ([form.party, form.bankName, form.address, form.ifsc, form.accountNo, form.city].some((value) => !value.trim())) {
-      showToast("error", "Please complete all required fields.");
-      return;
-    }
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.ifsc)) {
-      showToast("error", "Enter a valid IFSC code, for example HDFC0001234.");
-      return;
-    }
-    if (editingId) {
-      setRecords((current) =>
-        current.map((record) =>
-          record.id === editingId
-            ? { ...form, id: editingId, isDefault: record.isDefault, status: record.status }
-            : record.isDefault && record.party === form.party && current.find((item) => item.id === editingId)?.party !== form.party
-              ? { ...record, isDefault: false }
-              : record,
-        ),
-      );
-      showToast("success", "Bank details updated successfully.");
-    } else {
-      setRecords((current) => [...current, { ...form, id: Date.now() }]);
-      showToast("success", "Bank details added successfully.");
-    }
-    resetForm();
-  }
-  function editRecord(record: BankRecord) {
-    setForm({
-      party: record.party,
-      bankName: record.bankName,
-      address: record.address,
-      ifsc: record.ifsc,
-      accountNo: record.accountNo,
-      city: record.city,
-         isDefault: record.isDefault,
-         status: record.status,
-    });
-    setEditingId(record.id);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-  function deleteRecord(record: BankRecord) {
-    if (!window.confirm(`Delete bank details for ${record.party}?`)) return;
-    setRecords((current) => current.filter((item) => item.id !== record.id));
-    if (editingId === record.id) resetForm();
-    showToast("success", "Bank details deleted.");
+  function exportPdf() {
+    const rows = filtered.map((record) => `<tr><td>${record.party}</td><td>${record.accountNo}</td><td>${record.bankName}</td><td>${record.ifsc}</td></tr>`).join("");
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+    if (!printWindow) { setToast("Please allow pop-ups to download the PDF."); return; }
+    printWindow.document.write(`<html><head><title>Bank Details</title><style>body{font-family:Arial,sans-serif;padding:24px}h1{font-size:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background:#f1f3f5}</style></head><body><h1>Bank Details</h1><table><thead><tr><th>Party</th><th>Account No.</th><th>Bank Name</th><th>IFSC</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+    printWindow.document.close(); printWindow.focus(); printWindow.print();
+    setToast(`${filtered.length} account records ready for PDF printing.`);
   }
 
-  return (
-    <div className="page bank-details-page">
-      <PageHeader
-        title="Bank Details"
-        subtitle="Manage party bank accounts and payment information"
-      />
-      {toast && (
-        <div
-          className={`alert bank-toast alert-${toast.type === "success" ? "success" : "danger"} shadow-sm`}
-          role="status"
-        >
-          <i
-            className={`bi ${toast.type === "success" ? "bi-check-circle" : "bi-exclamation-circle"} me-2`}
-          />
-          {toast.message}
-        </div>
-      )}
-      <section className="card bank-form-card mb-4" id="bank-details-form">
-        <div className="card-header bg-white d-flex justify-content-between align-items-center py-3 px-4">
-          <div>
-            <h2 className="h5 mb-1">
-              {editingId ? "Edit bank details" : "Add bank details"}
-            </h2>
-            <p className="muted mb-0">
-              Fields marked <span className="text-danger">*</span> are required
-            </p>
-          </div>
-          <span className="bank-form-icon">
-            <i className="bi bi-bank2" aria-hidden="true" />
-          </span>
-        </div>
-        <form className="p-4" onSubmit={submitForm}>
-          <div className="row g-3">
-            <div className="col-md-6">
-              <label htmlFor="party" className="form-label">
-                Party <span className="text-danger">*</span>
-              </label>
-              <select
-                id="party"
-                className="form-select"
-                value={form.party}
-                onChange={(event) => updateField("party", event.target.value)}
-              >
-                <option value="">Select Party</option>
-                   {bankData.parties.map((party) => (
-                  <option key={party}>{party}</option>
-                ))}
-              </select>
-            </div>
-            <div className="col-md-6">
-              <label htmlFor="bankName" className="form-label">
-                Bank Name <span className="text-danger">*</span>
-              </label>
-              <select
-                id="bankName"
-                className="form-select"
-                value={form.bankName}
-                onChange={(event) =>
-                  updateField("bankName", event.target.value)
-                }
-              >
-                <option value="">Select Bank</option>
-                   {bankData.banks.map((bank) => (
-                  <option key={bank}>{bank}</option>
-                ))}
-              </select>
-            </div>
-            <div className="col-md-8">
-              <label htmlFor="address" className="form-label">
-                Address <span className="text-danger">*</span>
-              </label>
-              <textarea
-                id="address"
-                className="form-control"
-                rows={3}
-                placeholder="Enter bank address"
-                value={form.address}
-                onChange={(event) => updateField("address", event.target.value)}
-              />
-            </div>
-            <div className="col-md-4">
-              <label htmlFor="city" className="form-label">
-                City <span className="text-danger">*</span>
-              </label>
-              <select
-                id="city"
-                className="form-select"
-                value={form.city}
-                onChange={(event) => updateField("city", event.target.value)}
-              >
-                <option value="">Select City</option>
-                   {bankData.cities.map((city) => (
-                  <option key={city}>{city}</option>
-                ))}
-              </select>
-            </div>
-            <div className="col-md-6">
-              <label htmlFor="ifsc" className="form-label">
-                IFSC Code <span className="text-danger">*</span>
-              </label>
-              <input
-                id="ifsc"
-                className="form-control text-uppercase"
-                placeholder="e.g. HDFC0001234"
-                maxLength={11}
-                value={form.ifsc}
-                onChange={(event) => updateField("ifsc", event.target.value)}
-              />
-              <div className="form-text">
-                11 characters: 4 letters, 0, then 6 alphanumeric characters.
-              </div>
-            </div>
-            <div className="col-md-6">
-              <label htmlFor="accountNo" className="form-label">
-                Account No. <span className="text-danger">*</span>
-              </label>
-              <input
-                id="accountNo"
-                className="form-control"
-                inputMode="numeric"
-                placeholder="Enter account number"
-                value={form.accountNo}
-                onChange={(event) =>
-                  updateField(
-                    "accountNo",
-                    event.target.value.replace(/\D/g, ""),
-                  )
-                }
-              />
-            </div>
-          </div>
-          <div className="d-flex justify-content-end gap-2 mt-4">
-            <button type="button" className="btn btn-light" onClick={resetForm}>
-              <i className="bi bi-arrow-counterclockwise me-2" />
-              Reset
-            </button>
-            <button className="btn btn-brand" type="submit">
-              <i
-                className={`bi ${editingId ? "bi-check2" : "bi-plus-lg"} me-2`}
-              />
-              {editingId ? "Update Details" : "Save Details"}
-            </button>
-          </div>
-        </form>
-      </section>
-      <section className="card table-card" aria-label="Bank details table">
-        <div className="table-toolbar p-3 border-bottom">
-          <div className="bank-table-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-            <div><h2 className="h5 mb-1">Saved bank details</h2><span className="muted" aria-live="polite">{filteredRecords.length} of {records.length} records</span></div>
-            <button type="button" className="btn btn-outline-success bank-export-btn" onClick={exportExcel}><i className="bi bi-file-earmark-excel me-2" />Export Excel<span className="bank-export-count">{filteredRecords.length}</span></button>
-          </div>
-          <div className="d-flex justify-content-end mb-3">
-            <label className="search mb-0 bank-table-search" style={{ maxWidth: 390, width: "100%" }}><i className="bi bi-search" aria-hidden="true" /><span className="visually-hidden">Search bank details</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search bank details..." /></label>
-          </div>
-          <div className="row g-2 align-items-end">
-            <div className="col-sm-6 col-lg-2"><label htmlFor="filter-party" className="form-label small mb-1">Party</label><select id="filter-party" className="form-select form-select-sm" value={partyFilter} onChange={(event) => setPartyFilter(event.target.value)}><option value="">All Parties</option>{bankData.parties.map((party) => <option key={party}>{party}</option>)}</select></div>
-            <div className="col-sm-6 col-lg-2"><label htmlFor="filter-bank" className="form-label small mb-1">Bank Name</label><select id="filter-bank" className="form-select form-select-sm" value={bankFilter} onChange={(event) => setBankFilter(event.target.value)}><option value="">All Banks</option>{bankData.banks.map((bank) => <option key={bank}>{bank}</option>)}</select></div>
-            <div className="col-sm-6 col-lg-2"><label htmlFor="filter-city" className="form-label small mb-1">City</label><select id="filter-city" className="form-select form-select-sm" value={cityFilter} onChange={(event) => setCityFilter(event.target.value)}><option value="">All Cities</option>{bankData.cities.map((city) => <option key={city}>{city}</option>)}</select></div>
-            <div className="col-sm-6 col-lg-2"><label htmlFor="filter-status" className="form-label small mb-1">Status</label><select id="filter-status" className="form-select form-select-sm" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}><option>All</option><option>Active</option><option>Inactive</option></select></div>
-            <div className="col-sm-6 col-lg-2"><label htmlFor="filter-default" className="form-label small mb-1">Default</label><select id="filter-default" className="form-select form-select-sm" value={defaultFilter} onChange={(event) => setDefaultFilter(event.target.value as DefaultFilter)}><option>All</option><option>Default</option><option>Non-Default</option></select></div>
-            <div className="col-sm-6 col-lg-2 d-flex gap-2"><button type="button" className="btn btn-brand btn-sm flex-grow-1" onClick={applyFilters}>Apply Filter</button><button type="button" className="btn btn-light btn-sm" onClick={clearFilters} title="Clear filters" aria-label="Clear filters"><i className="bi bi-x-lg" /></button></div>
-          </div>
-        </div>
-        <div className="table-responsive">
-          <table className="table mb-0 align-middle">
-            <thead>
-              <tr>
-                <th>Party</th>
-                <th>Bank Name</th>
-                <th>Account No.</th>
-                <th>City</th>
-                <th>Address</th>
-                <th>IFSC Code</th>
-                <th>Default</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedRecords.length ? (
-                paginatedRecords.map((record) => (
-                  <tr key={record.id}>
-                    <td className="fw-semibold">{record.party}</td>
-                    <td>{record.bankName}</td>
-                    <td className="text-nowrap bank-copy-cell">
-                      <span>{maskAccount(record.accountNo)}</span>
-                      <button type="button" className="btn btn-sm btn-light copy-btn" onClick={() => copyValue(record.accountNo, "Account number")} aria-label={`Copy account number for ${record.party}`} title="Copy Account"><i className="bi bi-copy" /></button>
-                    </td>
-                    <td>{record.city}</td>
-                    <td className="bank-address">{record.address}</td>
-                    <td className="bank-copy-cell">
-                      <span className="ifsc-code">{record.ifsc}</span>
-                      <button type="button" className="btn btn-sm btn-light copy-btn" onClick={() => copyValue(record.ifsc, "IFSC code")} aria-label={`Copy IFSC code for ${record.party}`} title="Copy IFSC"><i className="bi bi-copy" /></button>
-                    </td>
-                    <td>{record.isDefault ? <span className="badge-soft badge-success">Default</span> : <span className="muted small">Non-default</span>}</td>
-                    <td><span className={`badge-soft ${record.status === "Active" ? "badge-success" : "badge-danger"}`}>{record.status}</span></td>
-                    <td>
-                      <div className="d-flex flex-wrap gap-1">
-                        <button
-                          className="btn btn-sm btn-light"
-                          onClick={() => setViewing(record)}
-                          aria-label={`View ${record.party}`}
-                          title="View"
-                        >
-                          <i className="bi bi-eye" />
-                        </button>
-                        <button
-                          className="btn btn-sm btn-light"
-                          onClick={() => editRecord(record)}
-                          aria-label={`Edit ${record.party}`}
-                          title="Edit"
-                        >
-                          <i className="bi bi-pencil" />
-                        </button>
-                        <button
-                          className="btn btn-sm btn-light text-danger"
-                          onClick={() => deleteRecord(record)}
-                          aria-label={`Delete ${record.party}`}
-                          title="Delete"
-                        >
-                          <i className="bi bi-trash3" />
-                        </button>
-                        {!record.isDefault && <button className="btn btn-sm btn-light text-primary" onClick={() => setDefault(record)} title="Set as Default" aria-label={`Set ${record.party} account as default`}><i className="bi bi-star" /></button>}
-                        <button className="btn btn-sm btn-light" onClick={() => toggleStatus(record)} title={record.status === "Active" ? "Deactivate" : "Activate"} aria-label={`${record.status === "Active" ? "Deactivate" : "Activate"} ${record.party}`}><i className={`bi ${record.status === "Active" ? "bi-toggle-on text-success" : "bi-toggle-off text-muted"}`} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={9} className="text-center py-5 muted">
-                    No bank details found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        {filteredRecords.length > 0 && <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 p-3 border-top"><div className="d-flex align-items-center gap-2"><span className="muted small">Rows per page</span><select className="form-select form-select-sm" style={{ width: 76 }} value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>{PAGE_SIZE_OPTIONS.map((size) => <option key={size} value={size}>{size}</option>)}</select><span className="muted small">Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filteredRecords.length)} of {filteredRecords.length}</span></div>{filteredRecords.length > pageSize && <nav aria-label="Bank details pagination"><ul className="pagination pagination-sm mb-0"><li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}><button type="button" className="page-link" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => page - 1)}>Previous</button></li>{Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => <li className={`page-item ${currentPage === page ? "active" : ""}`} key={page}><button type="button" className="page-link" onClick={() => setCurrentPage(page)} aria-current={currentPage === page ? "page" : undefined}>{page}</button></li>)}<li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}><button type="button" className="page-link" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => page + 1)}>Next</button></li></ul></nav>}</div>}
-      </section>
-      {viewing && (
-        <div
-          className="bank-modal-backdrop"
-          role="presentation"
-          onClick={() => setViewing(null)}
-        >
-          <section
-            className="card bank-view-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="view-bank-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="d-flex justify-content-between align-items-start mb-4">
-              <div>
-                <p className="eyebrow mb-1">Bank account</p>
-                <h2 id="view-bank-title" className="h4 mb-0">
-                  {viewing.party}
-                </h2>
-              </div>
-              <button
-                className="btn-close"
-                aria-label="Close details"
-                onClick={() => setViewing(null)}
-              />
-            </div>
-            <div className="row g-3">
-              {[
-                ["Bank Name", viewing.bankName],
-                ["Account No.", maskAccount(viewing.accountNo)],
-                ["IFSC Code", viewing.ifsc],
-                ["City", viewing.city],
-                ["Address", viewing.address],
-              ].map(([label, value]) => (
-                <div className="col-sm-6" key={label}>
-                  <div className="muted small">{label}</div>
-                  <div className="fw-semibold mt-1 d-flex align-items-center">
-                    <span>{value}</span>
-                    {(label === "Account No." || label === "IFSC Code") && (
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-light copy-btn"
-                        onClick={() => copyValue(label === "Account No." ? viewing.accountNo : viewing.ifsc, label)}
-                        aria-label={`Copy ${label}`}
-                        title={`Copy ${label}`}
-                      >
-                        <i className="bi bi-copy" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="text-end mt-4">
-              <button
-                className="btn btn-brand"
-                onClick={() => setViewing(null)}
-              >
-                Close
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
-    </div>
-  );
+  return <div className="page bank-details-page">
+    <PageHeader title="Bank Details" subtitle="Manage party bank accounts and payment information" />
+    {toast && <div className="alert alert-info shadow-sm" role="status">{toast}<button className="btn-close float-end" onClick={() => setToast(null)} aria-label="Close" /></div>}
+    <section className="row g-3 mb-4">{[["Total Accounts", summary.total, "primary"], ["Active Accounts", summary.active, "success"], ["Inactive Accounts", summary.inactive, "danger"], ["Default Accounts", summary.defaults, "warning"]].map(([label, value, color]) => <div className="col-6 col-xl-3" key={String(label)}><div className={`card border-0 shadow-sm h-100 border-start border-4 border-${color}`}><div className="card-body"><div className="small text-secondary">{label}</div><div className="h3 mb-0">{value}</div></div></div></div>)}</section>
+    <section className="card border-0 shadow-sm mb-4" id="bank-details-form"><div className="card-header bg-white"><h2 className="h5 mb-0">{editingId ? "Edit bank details" : "Add bank details"}</h2></div><form className="card-body" onSubmit={submit}><div className="row g-3">
+      <div className="col-md-6"><label className="form-label" htmlFor="party">Party *</label><div className="input-group"><select id="party" className={`form-select ${touched.party && validationErrors.party ? "is-invalid" : ""}`} value={form.party} onChange={(e) => update("party", e.target.value)}><option value="">Select Party</option>{store.parties.map((item) => <option key={item}>{item}</option>)}</select><button type="button" className="btn btn-outline-primary" onClick={() => setModal("party")}>+ Add New Party</button></div>{touched.party && validationErrors.party && <div className="invalid-feedback d-block">{validationErrors.party}</div>}</div>
+      <div className="col-md-6"><label className="form-label" htmlFor="bankName">Bank Name *</label><div className="input-group"><select id="bankName" className={`form-select ${touched.bankName && validationErrors.bankName ? "is-invalid" : ""}`} value={form.bankName} onChange={(e) => update("bankName", e.target.value)}><option value="">Select Bank</option>{store.banks.map((item) => <option key={item}>{item}</option>)}</select><button type="button" className="btn btn-outline-primary" onClick={() => setModal("bank")}>+ Add New Bank</button></div>{touched.bankName && validationErrors.bankName && <div className="invalid-feedback d-block">{validationErrors.bankName}</div>}</div>
+      <div className="col-md-8"><label className="form-label" htmlFor="address">Address *</label><textarea id="address" className={`form-control ${touched.address && validationErrors.address ? "is-invalid" : ""}`} minLength={5} maxLength={250} rows={2} value={form.address} onChange={(e) => update("address", e.target.value)} />{touched.address && validationErrors.address && <div className="invalid-feedback d-block">{validationErrors.address}</div>}</div>
+      <div className="col-md-4"><label className="form-label" htmlFor="state">State *</label><select id="state" className={`form-select ${touched.state && validationErrors.state ? "is-invalid" : ""}`} value={form.state} onChange={(e) => { setTouched((current) => ({ ...current, state: true })); setForm((current) => ({ ...current, state: e.target.value, city: e.target.value === "Maharashtra" ? "Ahilyanagar" : "" })); }}><option value="">Select State</option>{states.map((item) => <option key={item}>{item}</option>)}</select>{touched.state && validationErrors.state && <div className="invalid-feedback d-block">{validationErrors.state}</div>}</div>
+      <div className="col-md-4"><label className="form-label" htmlFor="city">City *</label><div className="input-group"><select id="city" className={`form-select ${touched.city && validationErrors.city ? "is-invalid" : ""}`} value={form.city} onChange={(e) => update("city", e.target.value)}><option value="">Select City</option>{cities.map((item) => <option key={item}>{item}</option>)}</select><button type="button" className="btn btn-outline-primary" onClick={() => setModal("city")}>+ Add New City</button></div>{touched.city && validationErrors.city && <div className="invalid-feedback d-block">{validationErrors.city}</div>}</div>
+      <div className="col-md-4"><label className="form-label" htmlFor="ifsc">IFSC Code *</label><input id="ifsc" className={`form-control text-uppercase ${touched.ifsc && validationErrors.ifsc ? "is-invalid" : ""}`} maxLength={11} value={form.ifsc} onChange={(e) => update("ifsc", e.target.value)} placeholder="HDFC0001234" />{touched.ifsc && validationErrors.ifsc && <div className="invalid-feedback d-block">{validationErrors.ifsc}</div>}</div>
+      <div className="col-md-4"><label className="form-label" htmlFor="accountNo">Account No. *</label><input id="accountNo" type="text" inputMode="numeric" className={`form-control ${touched.accountNo && validationErrors.accountNo ? "is-invalid" : ""}`} minLength={9} maxLength={18} value={form.accountNo} onChange={(e) => update("accountNo", e.target.value)} />{touched.accountNo && validationErrors.accountNo && <div className="invalid-feedback d-block">{validationErrors.accountNo}</div>}</div>
+      <div className="col-md-4"><label className="form-label" htmlFor="accountType">Account Type</label><select id="accountType" className="form-select" value={form.accountType ?? ""} onChange={(e) => update("accountType", e.target.value || undefined)}><option value="">Select Account Type</option>{["Savings", "Current", "OD", "CC"].map((item) => <option key={item}>{item}</option>)}</select></div>
+      <div className="col-md-4 d-flex align-items-end"><div className="form-check form-switch"><input id="isDefault" className="form-check-input" type="checkbox" checked={form.isDefault} onChange={(e) => update("isDefault", e.target.checked)} /><label className="form-check-label" htmlFor="isDefault">Set as Default</label></div></div>
+      <div className="col-md-4"><label className="form-label" htmlFor="status">Status</label><select id="status" className="form-select" value={form.status} onChange={(e) => update("status", e.target.value)}><option>Active</option><option>Inactive</option></select></div>
+    </div><div className="d-flex justify-content-end gap-2 mt-4"><button type="button" className="btn btn-light" onClick={reset}>Reset</button><button className="btn btn-primary" disabled={!canSave}>{saving ? "Saving..." : editingId ? "Update Details" : "Save Details"}</button></div></form></section>
+    <section className="card border-0 shadow-sm"><div className="card-body border-bottom"><div className="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3"><div><h2 className="h5 mb-1">Saved bank details</h2><span className="text-secondary">{filtered.length} of {store.records.length} records</span></div><div className="d-flex flex-wrap gap-2"><input className="form-control" style={{ maxWidth: 390 }} placeholder="Search Party, Bank, IFSC or Account..." value={search} onChange={(e) => setSearch(e.target.value)} /><button type="button" className="btn btn-outline-success" onClick={exportCsv} title="Download full filtered account details as Excel-compatible CSV"><i className="bi bi-file-earmark-excel me-1" />Excel</button><button type="button" className="btn btn-outline-danger" onClick={exportPdf} title="Print or save full filtered account details as PDF"><i className="bi bi-file-earmark-pdf me-1" />PDF</button></div></div><div className="row g-2"><select className="form-select col" value={filters.party} onChange={(e) => setFilters({ ...filters, party: e.target.value })}><option value="">All Parties</option>{store.parties.map((item) => <option key={item}>{item}</option>)}</select><select className="form-select col" value={filters.bank} onChange={(e) => setFilters({ ...filters, bank: e.target.value })}><option value="">All Banks</option>{store.banks.map((item) => <option key={item}>{item}</option>)}</select><select className="form-select col" value={filters.state} onChange={(e) => setFilters({ ...filters, state: e.target.value })}><option value="">All States</option>{states.map((item) => <option key={item}>{item}</option>)}</select><select className="form-select col" value={filters.city} onChange={(e) => setFilters({ ...filters, city: e.target.value })}><option value="">All Cities</option>{cities.map((item) => <option key={item}>{item}</option>)}</select><select className="form-select col" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}><option>All</option><option>Active</option><option>Inactive</option></select><select className="form-select col" value={filters.defaultValue} onChange={(e) => setFilters({ ...filters, defaultValue: e.target.value })}><option>All</option><option>Yes</option><option>No</option></select><button className="btn btn-light col" onClick={clearFilters}>Clear Filters</button></div></div>
+      {loading ? <div className="p-5 text-center"><div className="spinner-border" /> <div>Loading bank details...</div></div> : <div className="table-responsive"><table className="table align-middle mb-0"><thead><tr><th>#</th><th>Party</th><th>Bank Name</th><th>Account No.</th><th>IFSC</th><th>State</th><th>City</th><th>Default</th><th>Status</th><th>Actions</th></tr></thead><tbody>{visible.length ? visible.map((record, index) => <tr key={record.id}><td>{(page - 1) * pageSize + index + 1}</td><td>{record.party}</td><td>{record.bankName}</td><td className="text-nowrap">{maskAccount(record.accountNo)} <button type="button" className="btn btn-sm btn-light ms-1" onClick={() => copyValue(record.accountNo, "Account number")} title="Copy full account number" aria-label={`Copy full account number for ${record.party}`}><i className="bi bi-copy" /></button></td><td className="text-nowrap">{record.ifsc} <button type="button" className="btn btn-sm btn-light ms-1" onClick={() => copyValue(record.ifsc, "IFSC")} title="Copy IFSC" aria-label={`Copy IFSC for ${record.party}`}><i className="bi bi-copy" /></button></td><td>{record.state}</td><td>{record.city}</td><td>{record.isDefault ? "Yes" : "No"}</td><td><span className={`badge text-bg-${record.status === "Active" ? "success" : "secondary"}`}>{record.status}</span></td><td><div className="d-flex gap-1"><button type="button" className="btn btn-sm btn-light" onClick={() => setViewing(record)} title="View" aria-label={`View ${record.party}`}><i className="bi bi-eye" aria-hidden="true" /></button><button type="button" className="btn btn-sm btn-light" onClick={() => edit(record)} title="Edit" aria-label={`Edit ${record.party}`}><i className="bi bi-pencil" aria-hidden="true" /></button><button type="button" className="btn btn-sm btn-light" onClick={() => edit(record, true)} title="Copy" aria-label={`Copy ${record.party}`}><i className="bi bi-copy" aria-hidden="true" /></button>{!record.isDefault && <button type="button" className="btn btn-sm btn-light" onClick={() => action(record.id, "default")} title="Set Default" aria-label={`Set ${record.party} as default`}><i className="bi bi-star" aria-hidden="true" /></button>}<button type="button" className="btn btn-sm btn-light" onClick={() => action(record.id, "status")} title={record.status === "Active" ? "Deactivate" : "Activate"} aria-label={`${record.status === "Active" ? "Deactivate" : "Activate"} ${record.party}`}><i className={`bi ${record.status === "Active" ? "bi-toggle-on text-success" : "bi-toggle-off text-secondary"}`} aria-hidden="true" /></button></div></td></tr>) : <tr><td colSpan={10} className="text-center p-5">No bank details found.<br /><span className="text-secondary">Try changing your search or filters.</span></td></tr>}</tbody></table></div>}
+      <div className="d-flex flex-wrap justify-content-between align-items-center p-3 gap-2"><span>Showing {filtered.length ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, filtered.length)} of {filtered.length}</span><div className="d-flex gap-2"><select className="form-select form-select-sm" value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>{pageSizes.map((size) => <option key={size}>{size}</option>)}</select><button className="btn btn-sm btn-light" disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><span className="align-self-center">{page} / {totalPages}</span><button className="btn btn-sm btn-light" disabled={page === totalPages} onClick={() => setPage(page + 1)}>Next</button></div></div>
+    </section>
+    {viewing && <div className="modal d-block" tabIndex={-1} role="dialog" onClick={() => setViewing(null)}><div className="modal-dialog modal-dialog-centered" onClick={(e) => e.stopPropagation()}><div className="modal-content"><div className="modal-header"><h2 className="modal-title h5">Bank Details</h2><button className="btn-close" onClick={() => setViewing(null)} aria-label="Close" /></div><div className="modal-body"><dl className="row mb-0">{Object.entries({ Party: viewing.party, "Bank Name": viewing.bankName, Address: viewing.address, State: viewing.state, City: viewing.city, IFSC: viewing.ifsc, "Account Type": viewing.accountType ?? "-", "Account Number": maskAccount(viewing.accountNo), Default: viewing.isDefault ? "Yes" : "No", Status: viewing.status }).map(([key, value]) => <><dt className="col-5" key={`${key}-label`}>{key}</dt><dd className="col-7" key={`${key}-value`}>{value}</dd></>)}</dl></div><div className="modal-footer"><button className="btn btn-light" onClick={() => setViewing(null)}>Close</button><button className="btn btn-primary" onClick={() => { setViewing(null); edit(viewing); }}>Edit</button></div></div></div></div>}
+    {modal && <div className="modal d-block" tabIndex={-1} role="dialog"><div className="modal-dialog modal-dialog-centered"><div className="modal-content"><div className="modal-header"><h2 className="modal-title h5">Add New {modal}</h2><button className="btn-close" onClick={() => setModal(null)} aria-label="Close" /></div><div className="modal-body"><input autoFocus className="form-control" value={masterName} onChange={(e) => setMasterName(e.target.value)} placeholder={`Enter ${modal} name`} /></div><div className="modal-footer"><button className="btn btn-light" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" onClick={addMaster}>Save</button></div></div></div></div>}
+  </div>;
 }

@@ -3,14 +3,31 @@
     "Apollo Pharmacy",
     "MedPlus Healthcare",
     "Wellness Retail",
-    "City Care Hospital"
+    "City Care Hospital",
+    "somnath"
   ],
   "banks": [
     "HDFC Bank",
     "ICICI Bank",
     "State Bank of India",
     "Axis Bank",
-    "Kotak Mahindra Bank"
+    "Kotak Mahindra Bank",
+    "Bank of Maharashtra",
+    "Bank of India",
+    "Canara Bank",
+    "Union Bank of India",
+    "Indian Bank",
+    "Central Bank of India",
+    "Punjab National Bank",
+    "UCO Bank",
+    "IDBI Bank",
+    "Federal Bank",
+    "IndusInd Bank",
+    "Yes Bank",
+    "Bandhan Bank",
+    "AU Small Finance Bank",
+    "RBL Bank",
+    "anushka bank"
   ],
   "cities": [
     "Mumbai",
@@ -18,7 +35,41 @@
     "Bengaluru",
     "Hyderabad",
     "New Delhi",
-    "Chennai"
+    "Chennai",
+    "Ahilyanagar",
+    "Akola",
+    "Amravati",
+    "Chhatrapati Sambhajinagar",
+    "Beed",
+    "Bhandara",
+    "Buldhana",
+    "Chandrapur",
+    "Dhule",
+    "Gadchiroli",
+    "Gondia",
+    "Hingoli",
+    "Jalgaon",
+    "Jalna",
+    "Kolhapur",
+    "Latur",
+    "Mumbai Suburban",
+    "Nagpur",
+    "Nanded",
+    "Nandurbar",
+    "Nashik",
+    "Palghar",
+    "Parbhani",
+    "Raigad",
+    "Ratnagiri",
+    "Sangli",
+    "Satara",
+    "Sindhudurg",
+    "Solapur",
+    "Thane",
+    "Dharashiv",
+    "Wardha",
+    "Washim",
+    "Yavatmal"
   ],
   "records": [
     {
@@ -29,8 +80,9 @@
       "ifsc": "HDFC0001245",
       "accountNo": "50200018476291",
       "city": "Mumbai",
-      "isDefault": true,
-      "status": "Active"
+      "isDefault": false,
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 2,
@@ -41,7 +93,8 @@
       "accountNo": "014205001983",
       "city": "Hyderabad",
       "isDefault": false,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 3,
@@ -52,7 +105,8 @@
       "accountNo": "321456789012",
       "city": "Pune",
       "isDefault": true,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 4,
@@ -63,7 +117,8 @@
       "accountNo": "912345678901",
       "city": "Bengaluru",
       "isDefault": true,
-      "status": "Inactive"
+      "status": "Inactive",
+      "state": "Maharashtra"
     },
     {
       "id": 5,
@@ -74,7 +129,8 @@
       "accountNo": "671234567890",
       "city": "New Delhi",
       "isDefault": false,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 6,
@@ -85,7 +141,8 @@
       "accountNo": "50200018476306",
       "city": "Hyderabad",
       "isDefault": true,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 7,
@@ -96,7 +153,8 @@
       "accountNo": "014205001984",
       "city": "Pune",
       "isDefault": false,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 8,
@@ -107,7 +165,8 @@
       "accountNo": "321456789013",
       "city": "Bengaluru",
       "isDefault": false,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 9,
@@ -118,7 +177,8 @@
       "accountNo": "912345678902",
       "city": "Mumbai",
       "isDefault": false,
-      "status": "Inactive"
+      "status": "Inactive",
+      "state": "Maharashtra"
     },
     {
       "id": 10,
@@ -129,7 +189,8 @@
       "accountNo": "671234567891",
       "city": "Hyderabad",
       "isDefault": false,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 11,
@@ -140,7 +201,8 @@
       "accountNo": "50200018476307",
       "city": "Pune",
       "isDefault": false,
-      "status": "Inactive"
+      "status": "Inactive",
+      "state": "Maharashtra"
     },
     {
       "id": 12,
@@ -151,7 +213,8 @@
       "accountNo": "014205001985",
       "city": "Bengaluru",
       "isDefault": false,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 13,
@@ -162,7 +225,8 @@
       "accountNo": "321456789014",
       "city": "Mumbai",
       "isDefault": false,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 14,
@@ -173,7 +237,8 @@
       "accountNo": "912345678903",
       "city": "Hyderabad",
       "isDefault": false,
-      "status": "Inactive"
+      "status": "Inactive",
+      "state": "Maharashtra"
     },
     {
       "id": 15,
@@ -184,7 +249,8 @@
       "accountNo": "671234567892",
       "city": "Pune",
       "isDefault": false,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 16,
@@ -195,7 +261,8 @@
       "accountNo": "50200018476308",
       "city": "Bengaluru",
       "isDefault": false,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 17,
@@ -206,7 +273,8 @@
       "accountNo": "014205001986",
       "city": "Mumbai",
       "isDefault": false,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 18,
@@ -217,7 +285,8 @@
       "accountNo": "321456789015",
       "city": "Hyderabad",
       "isDefault": false,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 19,
@@ -228,7 +297,8 @@
       "accountNo": "912345678904",
       "city": "Pune",
       "isDefault": false,
-      "status": "Inactive"
+      "status": "Inactive",
+      "state": "Maharashtra"
     },
     {
       "id": 20,
@@ -239,7 +309,8 @@
       "accountNo": "671234567893",
       "city": "Bengaluru",
       "isDefault": false,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 21,
@@ -250,7 +321,8 @@
       "accountNo": "50200018476309",
       "city": "Mumbai",
       "isDefault": false,
-      "status": "Inactive"
+      "status": "Inactive",
+      "state": "Maharashtra"
     },
     {
       "id": 22,
@@ -261,7 +333,8 @@
       "accountNo": "014205001987",
       "city": "Hyderabad",
       "isDefault": false,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 23,
@@ -272,7 +345,8 @@
       "accountNo": "321456789016",
       "city": "Pune",
       "isDefault": false,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
     },
     {
       "id": 24,
@@ -283,7 +357,8 @@
       "accountNo": "912345678905",
       "city": "Bengaluru",
       "isDefault": false,
-      "status": "Inactive"
+      "status": "Inactive",
+      "state": "Maharashtra"
     },
     {
       "id": 25,
@@ -294,7 +369,21 @@
       "accountNo": "671234567894",
       "city": "Mumbai",
       "isDefault": false,
-      "status": "Active"
+      "status": "Active",
+      "state": "Maharashtra"
+    },
+    {
+      "party": "Apollo Pharmacy",
+      "bankName": "IDBI Bank",
+      "address": "khadadi pune",
+      "state": "Maharashtra",
+      "city": "Ahilyanagar",
+      "ifsc": "HDFC0001245",
+      "accountNo": "50200018476291",
+      "accountType": "Current",
+      "isDefault": true,
+      "status": "Active",
+      "id": 26
     }
   ]
 }
