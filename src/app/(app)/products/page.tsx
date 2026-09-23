@@ -330,10 +330,8 @@ export default function ProductsPage() {
   }
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setProducts(mergeProducts());
-      setLoading(false);
-    }, 250);
+    setProducts(mergeProducts());
+    setLoading(false);
 
     const savedToast = window.sessionStorage.getItem("productToast");
     if (savedToast) {
@@ -342,7 +340,6 @@ export default function ProductsPage() {
     }
 
     return () => {
-      window.clearTimeout(timer);
       if (toastTimeoutRef.current) {
         window.clearTimeout(toastTimeoutRef.current);
       }

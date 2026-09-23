@@ -17,7 +17,7 @@ export function PageHeader({ title, subtitle, action, href }: { title: string; s
 export function Status({ value }: { value: string }) {
   const text = value || "Unknown";
   const lower = text.toLowerCase();
-  const cls = lower.includes("active") || lower.includes("delivered") || lower.includes("received") || lower.includes("in stock")
+  const cls = (lower === "active" || lower.includes("delivered") || lower.includes("received") || lower.includes("in stock"))
     ? "badge-success" : lower.includes("pending") || lower.includes("processing") || lower.includes("low") ? "badge-warning" : "badge-danger";
   return <span className={`badge-soft ${cls}`}>{text}</span>;
 }

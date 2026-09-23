@@ -2,10 +2,14 @@
   "name": "MediStores Medical Sales & Inventory",
   "short_name": "MediStores",
   "description": "Medical distribution, inventory, orders and field sales management",
-  "start_url": "/NextMediStores2026/",
-  "scope": "/NextMediStores2026/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f6f8fc",
   "theme_color": "#2856d9",
-  "icons": [{ "src": "/NextMediStores2026/assets/images/favicon.png", "sizes": "64x64", "type": "image/png" }]
+  "icons": [
+    { "src": "assets/images/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/images/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "assets/images/favicon.png", "sizes": "96x96", "type": "image/png", "purpose": "any" }
+  ]
 }

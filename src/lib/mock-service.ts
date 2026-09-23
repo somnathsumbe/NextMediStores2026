@@ -3,6 +3,8 @@ const KEY = "medistores_db";
 import seedData from "../data/products.json";
 
 const seed = Array.isArray(seedData) ? { products: seedData } : (seedData ?? {});
+let cachedDb: AnyRecord | null = null;
+let cachedRaw: string | null = null;
 
 function syncSeedData(db: AnyRecord): AnyRecord {
   const next: AnyRecord = { ...seed, ...db };
@@ -40,23 +42,44 @@ function readDb(): AnyRecord {
   const normalizedSeed = Array.isArray(seedData) ? { products: seedData } : (seedData ?? {});
   if (typeof window === "undefined") return structuredClone(normalizedSeed);
   const raw = localStorage.getItem(KEY);
-  if (!raw) { localStorage.setItem(KEY, JSON.stringify(normalizedSeed)); return structuredClone(normalizedSeed); }
+  if (raw === cachedRaw && cachedDb) return cachedDb;
+  if (!raw) {
+    const serializedSeed = JSON.stringify(normalizedSeed);
+    localStorage.setItem(KEY, serializedSeed);
+    cachedRaw = serializedSeed;
+    cachedDb = structuredClone(normalizedSeed);
+    return cachedDb;
+  }
   try {
     const parsed = JSON.parse(raw);
     const normalizedParsed = Array.isArray(parsed) ? { products: parsed } : (parsed ?? {});
     const synced = syncSeedData(normalizedParsed);
-    if (JSON.stringify(normalizedParsed) !== JSON.stringify(synced)) {
-      localStorage.setItem(KEY, JSON.stringify(synced));
+    const serialized = JSON.stringify(synced);
+    if (serialized !== raw) {
+      localStorage.setItem(KEY, serialized);
     }
-    return synced;
+    cachedRaw = serialized;
+    cachedDb = synced;
+    return cachedDb;
   } catch {
-    return structuredClone(normalizedSeed);
+    cachedRaw = null;
+    cachedDb = structuredClone(normalizedSeed);
+    return cachedDb;
   }
 }
-function writeDb(db: AnyRecord) { localStorage.setItem(KEY, JSON.stringify(db)); }
+function writeDb(db: AnyRecord) {
+  const serialized = JSON.stringify(db);
+  localStorage.setItem(KEY, serialized);
+  cachedRaw = serialized;
+  cachedDb = db;
+}
 
 export const mockService = {
   get<T=AnyRecord[]>(collection:string): T[] { return (readDb()[collection] || []) as T[]; },
+  getMany<T=AnyRecord[]>(collections: string[]): Record<string, T[]> {
+    const db = readDb();
+    return Object.fromEntries(collections.map((collection) => [collection, (db[collection] || []) as T[]]));
+  },
   save<T extends AnyRecord>(collection:string, item:T) {
     const db=readDb(); const list=db[collection] || [];
     const nextId = list.reduce((m:any,x:any)=>Math.max(m,Number(x.id)||0),0)+1;
@@ -68,5 +91,5 @@ export const mockService = {
   remove(collection:string,id:any) {
     const db=readDb(); db[collection]=(db[collection]||[]).filter((x:any)=>x.id!==id); writeDb(db);
   },
-  reset() { localStorage.removeItem(KEY); }
+  reset() { localStorage.removeItem(KEY); cachedRaw = null; cachedDb = null; }
 };

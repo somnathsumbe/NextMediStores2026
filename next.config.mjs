@@ -4,7 +4,7 @@ const isGithubPages = process.env.GITHUB_ACTIONS === "true" || process.env.NEXT_
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  output: "export",
+  ...(isGithubPages ? { output: "export" } : {}),
   trailingSlash: true,
   basePath: isGithubPages ? "/NextMediStores2026" : "",
   assetPrefix: isGithubPages ? "/NextMediStores2026/" : "",

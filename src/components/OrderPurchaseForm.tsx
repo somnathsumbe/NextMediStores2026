@@ -6,6 +6,9 @@ import productsData from "@/data/products.json";
 import customersData from "@/data/customers.json";
 import transportationData from "@/data/transportation.json";
 import schemesData from "@/data/schemes.json";
+import { mockService } from "@/lib/mock-service";
+import { salesmanService } from "@/lib/salesman-service";
+import type { Salesman } from "@/types/salesman";
 
 type Mode = "order" | "purchase";
 
@@ -58,6 +61,7 @@ type SchemeRecord = {
 type FormState = {
   productId: string;
   partnerId: string;
+  salesmanId: string;
   orderDate: string;
   quantity: string;
   deliveryAddress: string;
@@ -74,6 +78,30 @@ type FormState = {
   remarks: string;
 };
 
+export type SalesOrderRecord = {
+  id: number;
+  productId: string;
+  partnerId: string;
+  salesmanId?: number | string;
+  salesmanFullName?: string;
+  orderDate: string;
+  billDate: string;
+  billNumber: string;
+  quantity: number;
+  deliveryAddress: string;
+  paymentMethod: string;
+  scheme: string;
+  unitOfMeasure: string;
+  transportation: string;
+  mrp: number;
+  rate: number;
+  gstAmount: number;
+  discountAmount: number;
+  remarks: string;
+  total: number;
+  status?: string;
+};
+
 type FormErrors = Partial<Record<keyof FormState, string>> & { general?: string };
 
 type ProductFilter = "all" | "in-stock" | "low-stock" | "out-of-stock" | "valid" | "expiring-30" | "expiring-90" | "expired";
@@ -88,6 +116,7 @@ const UOM_OPTIONS = ["Numbers", "Bottle", "Box", "Strip", "Pack", "Carton"];
 const emptyForm = (): FormState => ({
   productId: "",
   partnerId: "",
+  salesmanId: "",
   orderDate: "",
   quantity: "1",
   deliveryAddress: "",
@@ -137,6 +166,7 @@ function buildValidation(mode: Mode, form: FormState, selectedProduct?: ProductR
 
   if (!form.productId) errors.productId = "Please select a product.";
   if (!form.partnerId) errors.partnerId = mode === "order" ? "Please select a customer." : "Please select a supplier.";
+  if (mode === "order" && !form.salesmanId) errors.salesmanId = "Please select the salesman who prepared this bill.";
   if (!form.orderDate) errors.orderDate = `${mode === "order" ? "Order" : "Purchase"} date is required.`;
   if (!form.deliveryAddress.trim()) errors.deliveryAddress = "Delivery address is required.";
   if (!form.quantity || Number(form.quantity) <= 0) errors.quantity = "Quantity must be greater than zero.";
@@ -160,15 +190,49 @@ function buildValidation(mode: Mode, form: FormState, selectedProduct?: ProductR
   return errors;
 }
 
-export default function OrderPurchaseForm({ mode, title, subtitle }: { mode: Mode; title: string; subtitle: string }) {
+export default function OrderPurchaseForm({ mode, title, subtitle, initialOrder }: { mode: Mode; title: string; subtitle: string; initialOrder?: SalesOrderRecord }) {
   const [form, setForm] = useState<FormState>(emptyForm());
   const [productSearch, setProductSearch] = useState("");
   const [partnerSearch, setPartnerSearch] = useState("");
+  const [salesmen, setSalesmen] = useState<Salesman[]>([]);
   const [productFilter, setProductFilter] = useState<ProductFilter>("in-stock");
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const activeSalesmen = salesmanService.active();
+    const previousSalesman = initialOrder?.salesmanId
+      ? salesmanService.list().find((salesman) => String(salesman.id) === String(initialOrder.salesmanId))
+      : undefined;
+    setSalesmen(previousSalesman && !activeSalesmen.some((salesman) => salesman.id === previousSalesman.id)
+      ? [...activeSalesmen, previousSalesman]
+      : activeSalesmen);
+    if (initialOrder) {
+      setForm({
+        productId: String(initialOrder.productId ?? ""),
+        partnerId: String(initialOrder.partnerId ?? ""),
+        salesmanId: String(initialOrder.salesmanId ?? ""),
+        orderDate: initialOrder.orderDate ?? "",
+        quantity: String(initialOrder.quantity ?? 1),
+        deliveryAddress: initialOrder.deliveryAddress ?? "",
+        billNumber: initialOrder.billNumber ?? "",
+        billDate: initialOrder.billDate ?? "",
+        paymentMethod: (initialOrder.paymentMethod as FormState["paymentMethod"]) || "Cash",
+        scheme: initialOrder.scheme ?? "No Scheme",
+        unitOfMeasure: initialOrder.unitOfMeasure ?? "Numbers",
+        transportation: initialOrder.transportation ?? "",
+        mrp: String(initialOrder.mrp ?? 0),
+        rate: String(initialOrder.rate ?? 0),
+        gstAmount: String(initialOrder.gstAmount ?? 0),
+        discountAmount: String(initialOrder.discountAmount ?? 0),
+        remarks: initialOrder.remarks ?? "",
+      });
+      setProductSearch(products.find((product) => String(product.id) === String(initialOrder.productId))?.productName ?? "");
+      setPartnerSearch(customers.find((customer) => String(customer.id) === String(initialOrder.partnerId))?.customerName ?? "");
+    }
+  }, [initialOrder]);
 
   const selectedProduct = useMemo(
     () => products.find((product) => String(product.id) === form.productId),
@@ -178,10 +242,13 @@ export default function OrderPurchaseForm({ mode, title, subtitle }: { mode: Mod
     () => customers.find((customer) => String(customer.id) === form.partnerId),
     [form.partnerId],
   );
+  const selectedSalesman = useMemo(
+    () => salesmen.find((salesman) => String(salesman.id) === form.salesmanId),
+    [form.salesmanId, salesmen],
+  );
 
   useEffect(() => {
-    const id = window.setTimeout(() => setIsLoading(false), 350);
-    return () => window.clearTimeout(id);
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -278,11 +345,38 @@ export default function OrderPurchaseForm({ mode, title, subtitle }: { mode: Mod
     setIsSaving(true);
     setToast(null);
 
-    await new Promise((resolve) => window.setTimeout(resolve, 500));
+    if (mode === "order") {
+      const payload = {
+        productId: form.productId,
+        partnerId: form.partnerId,
+        salesmanId: Number(form.salesmanId),
+        salesmanFullName: selectedSalesman?.fullName ?? "",
+        orderDate: form.orderDate,
+        billDate: form.billDate,
+        billNumber: form.billNumber,
+        quantity: Number(form.quantity),
+        deliveryAddress: form.deliveryAddress,
+        paymentMethod: form.paymentMethod,
+        scheme: form.scheme,
+        unitOfMeasure: form.unitOfMeasure,
+        transportation: form.transportation,
+        mrp: Number(form.mrp),
+        rate: Number(form.rate),
+        gstAmount: gstValue,
+        discountAmount: discountValue,
+        remarks: form.remarks,
+        total,
+        status: "Completed",
+      };
+      if (initialOrder) mockService.update("salesOrders", initialOrder.id, payload);
+      else mockService.save("salesOrders", payload);
+    } else {
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
+    }
 
     setIsSaving(false);
-    setToast({ type: "success", message: `${titleText} saved successfully.` });
-    setForm(emptyForm());
+    setToast({ type: "success", message: `${titleText} ${initialOrder ? "updated" : "saved"} successfully.` });
+    if (!initialOrder) setForm(emptyForm());
     setProductSearch("");
     setPartnerSearch("");
   };
@@ -429,6 +523,16 @@ export default function OrderPurchaseForm({ mode, title, subtitle }: { mode: Mod
                       </div>
                       {errors.partnerId && <div className="invalid-feedback d-block">{errors.partnerId}</div>}
                     </div>
+
+                    {mode === "order" && <div className="col-md-6">
+                      <label className="form-label" htmlFor="salesman">Salesman <span className="text-danger">*</span></label>
+                      <select id="salesman" className={`form-select ${errors.salesmanId ? "is-invalid" : ""}`} value={form.salesmanId} onChange={(event) => handleFieldChange("salesmanId", event.target.value)}>
+                        <option value="">Select salesman</option>
+                        {salesmen.map((salesman) => <option key={salesman.id} value={salesman.id}>{salesman.fullName}</option>)}
+                      </select>
+                      {errors.salesmanId && <div className="invalid-feedback">{errors.salesmanId}</div>}
+                      {!salesmen.length && <div className="form-text">Add an active salesman in Salesman Master before saving a bill.</div>}
+                    </div>}
 
                     <div className="col-md-3">
                       <label className="form-label">{dateLabel}</label>

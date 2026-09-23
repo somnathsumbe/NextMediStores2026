@@ -1,5 +1,5 @@
 const CACHE = "medistores-static-v4";
-const BASE_PATH = "/NextMediStores2026/";
+const BASE_PATH = new URL("./", self.location.href).pathname;
 self.addEventListener("install", event => event.waitUntil(caches.open(CACHE).then(cache => cache.add(`${BASE_PATH}manifest.webmanifest`)).then(() => self.skipWaiting())));
 self.addEventListener("activate", event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
 self.addEventListener("fetch", event => {

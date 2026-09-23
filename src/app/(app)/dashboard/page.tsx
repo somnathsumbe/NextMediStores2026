@@ -5,8 +5,8 @@ import {mockService} from "@/lib/mock-service";
 import {PageHeader,Status} from "@/components/ui";
 export default function Dashboard(){
  const [p,setP]=useState<any[]>([]),[sales,setSales]=useState<any[]>([]),[tx,setTx]=useState<any[]>([]);
- useEffect(()=>{setP(mockService.get("products"));setSales(mockService.get("salesOrders"));setTx(mockService.get("transactions"))},[]);
- const low=p.filter(x=>x.stock<=x.minStock), salesTotal=sales.reduce((a,x)=>a+x.amount,0), purchases=mockService.get<any>("purchaseOrders").reduce((a,x)=>a+x.amount,0);
+ useEffect(()=>{const data=mockService.getMany<any>(["products","salesOrders","transactions"]);setP(data.products);setSales(data.salesOrders);setTx(data.transactions)},[]);
+ const low=p.filter(x=>x.stock<=x.minStock), salesTotal=sales.reduce((a,x)=>a+x.amount,0);
  const stats=[["Products",p.length,"bi-capsule","View products","/products"],["Sales today",`₹${salesTotal.toLocaleString("en-IN")}`,"bi-graph-up-arrow","Sales orders","/sales-orders"],["Low stock",low.length,"bi-exclamation-triangle","Review stock","/products"]];
  return <div className="page"><PageHeader title="Dashboard" subtitle="Overview of your medical distribution business"/>
  <div className="row g-3 mb-4">{stats.map(s=><div className="col-xl-3 col-md-6" key={s[0] as string}><div className="card stat h-100"><div className="d-flex justify-content-between"><div><div className="muted">{s[0]}</div><h3>{s[1]}</h3><Link className="small text-primary" href={s[4] as string}>{s[3] as string} →</Link></div><div className="icon"><i className={"bi "+s[2]}></i></div></div></div></div>)}</div>

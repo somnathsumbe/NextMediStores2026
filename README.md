@@ -28,6 +28,7 @@ Modern frontend migration of the legacy Angular 9 MediStores application.
 - reports → `/reports`
 - invoice → `/invoice`
 - transactions → `/transactions`
+- salesman master → `/masters/salesman`
 
 ## Run
 ```bash
@@ -44,6 +45,12 @@ npm start
 The root layout contains global concerns only. Authentication routes are under `(auth)` and the shared `AppShell` is provided by `(app)/layout.tsx`. The GitHub Pages demo protects routes client-side with localStorage; the server middleware and auth handlers are preserved under the server-only source tree for a future Node deployment.
 
 The recommended production deployment is a Node-compatible Next.js host, with the future Java REST API deployed separately. GitHub Pages is supported for the frontend-only demo export.
+
+## Salesman and bill data
+
+The Salesman Master supports up to five records, optional 10-digit mobile numbers, editing, search, and Active/Inactive state. Sales bills save both `salesmanId` and the `salesmanFullName` snapshot; invoice preview and browser print/PDF show the snapshot, so later master edits do not change old bills. Older bills without these fields display `—`.
+
+The current demo stores Salesman and sales bills in browser `localStorage` through `src/lib/mock-service.ts`. This is device-local demo persistence and does not synchronize between phones or computers. Production multi-device use requires shared Java + Oracle (or another shared database) API endpoints for salesman CRUD and sales-bill CRUD, authentication/authorization, conflict handling, and deployment of the API separately from the static GitHub Pages frontend. The UI data-access boundary in `src/lib/salesman-service.ts` is the replacement point for that API.
 
 Copy `.env.example` to `.env.local` for local API configuration. `.env.local` must not be committed.
 

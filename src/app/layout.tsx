@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   title: { default: "MediStores", template: "%s | MediStores" },
   description: "Medical distribution, inventory, orders and field sales management",
   manifest: `${githubPagesPrefix}/manifest.webmanifest`,
-  icons: { icon: `${githubPagesPrefix}/assets/images/favicon.png` },
+  icons: { icon: `${githubPagesPrefix}/assets/images/favicon.png`, apple: `${githubPagesPrefix}/assets/images/favicon.png` },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#2856d9" };
 

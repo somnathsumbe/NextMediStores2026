@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { authService } from "@/services/auth/auth.service";
+import InstallPwaButton from "@/components/InstallPwaButton";
 
 const nav = [
   ["Dashboard", "/dashboard", "bi-grid-1x2"],
@@ -20,6 +21,7 @@ const masterNav = [
   ["Product", "/products", "bi-capsule"],
   ["Bank Details", "/bankinfo", "bi-bank"],
   ["Party", "/parties", "bi-people"],
+  ["Salesman", "/masters/salesman", "bi-person-badge"],
   ["Transport", "/masters/transport", "bi-truck"],
   ["HSN", "/masters/hsn", "bi-upc-scan"],
 ];
@@ -100,6 +102,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
           <div className="nav-section">Account</div>
+          <InstallPwaButton variant="menu" />
           <button className="side-link w-100 border-0 bg-transparent text-start" onClick={() => void handleLogout()} disabled={loggingOut}>
             <i className="bi bi-box-arrow-right" />{loggingOut ? "Signing out..." : "Sign out"}
           </button>
