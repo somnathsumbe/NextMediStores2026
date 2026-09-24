@@ -19,4 +19,5 @@ export interface Product {
   unitType: string;
   unitQuantity: number;
   hsn: string;
+  hsnCode?: string;
 }

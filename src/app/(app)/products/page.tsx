@@ -25,6 +25,7 @@ type ProductRecord = {
   unitType: string;
   unitQuantity: number;
   hsn: string;
+  hsnCode?: string;
 };
 
 type QuickFilter = "all" | "low-stock" | "out-of-stock" | "expiring-soon" | "expired";
@@ -161,7 +162,7 @@ function normalizeProduct(item: Partial<ProductRecord>): ProductRecord {
     drugGroup: item.drugGroup ?? "",
     unitType: item.unitType ?? "",
     unitQuantity: Number(item.unitQuantity ?? 0),
-    hsn: item.hsn ?? "",
+    hsn: item.hsnCode ?? item.hsn ?? "",
   };
 }
 

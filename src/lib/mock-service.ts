@@ -76,6 +76,14 @@ function writeDb(db: AnyRecord) {
 
 export const mockService = {
   get<T=AnyRecord[]>(collection:string): T[] { return (readDb()[collection] || []) as T[]; },
+  getOrSeed<T=AnyRecord[]>(collection: string, seedItems: T[]): T[] {
+    const db = readDb();
+    if (!Array.isArray(db[collection])) {
+      db[collection] = structuredClone(seedItems);
+      writeDb(db);
+    }
+    return db[collection] as T[];
+  },
   getMany<T=AnyRecord[]>(collections: string[]): Record<string, T[]> {
     const db = readDb();
     return Object.fromEntries(collections.map((collection) => [collection, (db[collection] || []) as T[]]));

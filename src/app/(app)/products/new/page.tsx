@@ -5,6 +5,8 @@ import { useMemo, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { mockService } from "@/lib/mock-service";
 import { calculatePTR } from "@/utils/product-pricing";
+import { hsnService } from "@/lib/hsn-service";
+import type { HsnRecord } from "@/types/hsn";
 
 type ProductRecord = {
   id: number;
@@ -26,7 +28,8 @@ type ProductRecord = {
   drugGroup: string;
   unitType: string;
   unitQuantity: number;
-  hsn: string;
+  hsnCode: string;
+  hsn?: string;
 };
 
 type ProductForm = {
@@ -84,7 +87,7 @@ function normalizeProduct(item: Partial<ProductRecord>): ProductRecord {
     drugGroup: item.drugGroup ?? "",
     unitType: item.unitType ?? "",
     unitQuantity: Number(item.unitQuantity ?? 0),
-    hsn: item.hsn ?? "",
+    hsnCode: item.hsnCode ?? item.hsn ?? "",
   };
 }
 
@@ -115,7 +118,7 @@ function parseDate(value: string) {
   return new Date(`${value}T00:00:00`).getTime();
 }
 
-function getValidationErrors(form: ProductForm): FormErrors {
+function getValidationErrors(form: ProductForm, hsnOptions: HsnRecord[]): FormErrors {
   const errors: FormErrors = {};
 
   if (!form.productName.trim()) errors.productName = "Product name is required.";
@@ -125,6 +128,7 @@ function getValidationErrors(form: ProductForm): FormErrors {
   if (!form.drugGroup.trim()) errors.drugGroup = "Drug group is required.";
   if (!form.unitType.trim()) errors.unitType = "Unit is required.";
   if (!form.hsn.trim()) errors.hsn = "HSN is required.";
+  else if (!/^\d{4}$/.test(form.hsn) || !hsnOptions.some((record) => record.hsnCode === form.hsn)) errors.hsn = "Select a valid active four-digit HSN code.";
 
   if (!form.manufactureDate) {
     errors.manufactureDate = "Manufacture Date is required";
@@ -180,6 +184,9 @@ export default function NewProductPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [toast, setToast] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [hsnOptions, setHsnOptions] = useState<HsnRecord[]>([]);
+
+  useEffect(() => { setHsnOptions(hsnService.activeValid()); }, []);
 
   useEffect(() => {
     const id = Number(searchParams.get("id"));
@@ -216,7 +223,7 @@ export default function NewProductPage() {
       manufactureDate: normalized.manufactureDate ?? "",
       expiryDate: normalized.expiryDate ?? "",
       drugGroup: normalized.drugGroup,
-      hsn: normalized.hsn,
+      hsn: normalized.hsnCode,
       replacement: Boolean(normalized.replacement ?? false),
       discountAllow: Boolean(normalized.discountAllow ?? false),
       dpcoProduct: Boolean(normalized.dpcoProduct ?? false),
@@ -235,11 +242,6 @@ export default function NewProductPage() {
 
   const unitOptions = useMemo(() => {
     const values = getProducts().map((item) => item.unitType).filter(Boolean);
-    return Array.from(new Set(values));
-  }, [searchParams]);
-
-  const hsnOptions = useMemo(() => {
-    const values = getProducts().map((item) => item.hsn).filter(Boolean);
     return Array.from(new Set(values));
   }, [searchParams]);
 
@@ -286,7 +288,7 @@ export default function NewProductPage() {
 
   const handleSave = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const validationErrors = getValidationErrors(form);
+    const validationErrors = getValidationErrors(form, hsnOptions);
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length > 0) {
@@ -313,7 +315,7 @@ export default function NewProductPage() {
       drugGroup: form.drugGroup.trim(),
       unitType: form.unitType.trim(),
       unitQuantity: Number(form.unitQuantity || 0),
-      hsn: form.hsn.trim(),
+      hsnCode: form.hsn.trim(),
     };
 
     if (editingId) {
@@ -664,20 +666,18 @@ export default function NewProductPage() {
                 </div>
 
                 <div className="col-xl-4 col-md-6">
-                  <label htmlFor="hsn" className="form-label">HSN <span className="text-danger">*</span></label>
-                  <input
+                  <label htmlFor="hsn" className="form-label">HSN Code <span className="text-danger">*</span></label>
+                  <select
                     id="hsn"
-                    list="hsn-options"
-                    className={`form-control ${errors.hsn ? "is-invalid" : ""}`}
-                    placeholder="Select HSN"
+                    className={`form-select ${errors.hsn ? "is-invalid" : ""}`}
                     value={form.hsn}
                     onChange={(event) => handleChange("hsn", event.target.value)}
-                  />
-                  <datalist id="hsn-options">
-                    {hsnOptions.map((option) => (
-                      <option key={option} value={option} />
-                    ))}
-                  </datalist>
+                  >
+                    <option value="">Select active HSN code</option>
+                    {form.hsn && !hsnOptions.some((option) => option.hsnCode === form.hsn) && <option value={form.hsn} disabled>Saved value: {form.hsn} (select a valid code)</option>}
+                    {hsnOptions.map((option) => <option key={option.id} value={option.hsnCode}>{option.hsnCode} — {option.category}</option>)}
+                  </select>
+                  {!hsnOptions.length && <div className="form-text">Complete an Active six-digit HSN record in HSN Master first.</div>}
                   {errors.hsn && <div className="invalid-feedback d-block">{errors.hsn}</div>}
                 </div>
 

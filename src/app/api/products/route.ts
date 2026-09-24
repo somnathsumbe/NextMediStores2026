@@ -101,7 +101,8 @@ export async function POST(request: Request) {
       drugGroup: String(product.drugGroup ?? "").trim(),
       unitType: String(product.unitType ?? "").trim(),
       unitQuantity,
-      hsn: String(product.hsn ?? "").trim(),
+      hsn: String(product.hsn ?? product.hsnCode ?? "").trim(),
+      hsnCode: String(product.hsnCode ?? product.hsn ?? "").trim(),
     };
 
     if (!isProductRecord(sanitizedProduct)) {

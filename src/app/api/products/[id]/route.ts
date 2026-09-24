@@ -52,7 +52,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       drugGroup: String(body.drugGroup ?? currentProduct.drugGroup).trim(),
       unitType: String(body.unitType ?? currentProduct.unitType).trim(),
       unitQuantity: Number(body.unitQuantity ?? currentProduct.unitQuantity),
-      hsn: String(body.hsn ?? currentProduct.hsn).trim(),
+      hsn: String(body.hsn ?? body.hsnCode ?? currentProduct.hsnCode ?? currentProduct.hsn).trim(),
+      hsnCode: String(body.hsnCode ?? body.hsn ?? currentProduct.hsnCode ?? currentProduct.hsn).trim(),
     };
 
     if (!Number.isFinite(updatedProduct.ptrSellRate) || updatedProduct.ptrSellRate < 0) {
