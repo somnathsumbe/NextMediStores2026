@@ -5,13 +5,26 @@ import type { HsnRecord, HsnStatus } from "@/types/hsn";
 type HsnCategoryEntry = { id: string; recordType: "category"; name: string; hsnCode: string };
 type HsnEntry = HsnRecord | HsnCategoryEntry;
 const COLLECTION = "hsnMaster";
+const SOURCE_META = "hsnMasterMeta";
 
 const seedEntries: HsnEntry[] = [
   ...hsnData.records.map((record) => ({ ...record, hsnCode: String(record.hsnCode), status: record.status === "Inactive" ? "Inactive" as HsnStatus : "Active" as HsnStatus })),
   ...hsnData.categories.map((category) => ({ id: `category-${category.name}`, recordType: "category" as const, name: category.name, hsnCode: category.hsnCode })),
 ];
+const sourceSignature = JSON.stringify(seedEntries);
+type HsnSourceMeta = { id: "source"; sourceSignature: string };
 
-function entries() { return mockService.getOrSeed<HsnEntry>(COLLECTION, seedEntries); }
+function entries() {
+  if (typeof window === "undefined") return structuredClone(seedEntries);
+  const stored = mockService.getOrSeed<HsnEntry>(COLLECTION, seedEntries);
+  const metadata = mockService.get<HsnSourceMeta>(SOURCE_META)[0];
+  if (metadata?.sourceSignature !== sourceSignature) {
+    mockService.replace(COLLECTION, seedEntries);
+    mockService.replace(SOURCE_META, [{ id: "source", sourceSignature }]);
+    return mockService.get<HsnEntry>(COLLECTION);
+  }
+  return stored;
+}
 function isRecord(entry: HsnEntry): entry is HsnRecord { return !("recordType" in entry); }
 function normalize(record: Partial<HsnRecord>): HsnRecord {
   const hsnCode = String(record.hsnCode ?? "").trim();
@@ -33,12 +46,31 @@ export const hsnService = {
     return mockService.save(COLLECTION, record) as HsnRecord;
   },
   update(id: number, input: Omit<HsnRecord, "id">): void {
-    this.assertCode(input.hsnCode);
-    this.assertCategory(input.category, input.hsnCode, id);
-    this.assertUnique(input.hsnCode, id);
-    mockService.update(COLLECTION, id, { ...input, hsnCode: input.hsnCode.trim(), category: input.category.trim() });
+    const category = input.category.trim();
+    const hsnCode = input.hsnCode.trim();
+    const current = this.list().find((record) => record.id === id);
+    if (!current) throw new Error("HSN record not found.");
+    this.assertCode(hsnCode);
+    this.assertUnique(hsnCode, id);
+    const currentCategoryEntry = entries().find((entry) => !isRecord(entry) && entry.name.toLowerCase() === current.category.toLowerCase());
+    const duplicateCategory = entries().some((entry) => !isRecord(entry) && entry.id !== currentCategoryEntry?.id && entry.name.toLowerCase() === category.toLowerCase());
+    if (duplicateCategory || this.list().some((record) => record.id !== id && record.category.toLowerCase() === category.toLowerCase())) throw new Error("This HSN Category already has an HSN record.");
+    if (entries().some((entry) => entry.id !== currentCategoryEntry?.id && entry.hsnCode === hsnCode)) throw new Error("This HSN Code already exists. Enter a unique code.");
+    if (currentCategoryEntry) {
+      mockService.update(COLLECTION, currentCategoryEntry.id, { name: category, hsnCode });
+    } else {
+      mockService.save(COLLECTION, { id: `category-${Date.now()}`, recordType: "category", name: category, hsnCode });
+    }
+    mockService.update(COLLECTION, id, { ...input, hsnCode, category });
   },
   toggleStatus(id: number, status: HsnStatus): void { mockService.update(COLLECTION, id, { status }); },
+  delete(id: number): void {
+    const record = this.list().find((item) => item.id === id);
+    if (!record) throw new Error("HSN record not found.");
+    const categoryEntry = entries().find((entry) => !isRecord(entry) && entry.name.toLowerCase() === record.category.toLowerCase());
+    mockService.remove(COLLECTION, id);
+    if (categoryEntry) mockService.remove(COLLECTION, categoryEntry.id);
+  },
   addCategory(name: string, code: string): HsnRecord {
     const trimmed = name.trim();
     if (!trimmed) throw new Error("Category name is required.");

@@ -3,11 +3,18 @@ const KEY = "medistores_db";
 import seedData from "../data/products.json";
 
 const seed = Array.isArray(seedData) ? { products: seedData } : (seedData ?? {});
+const productSourceSignature = JSON.stringify(Array.isArray(seed.products) ? seed.products : []);
 let cachedDb: AnyRecord | null = null;
 let cachedRaw: string | null = null;
 
 function syncSeedData(db: AnyRecord): AnyRecord {
   const next: AnyRecord = { ...seed, ...db };
+
+  if (next.productSourceSignature !== productSourceSignature) {
+    next.products = structuredClone(seed.products ?? []);
+    next.productSourceSignature = productSourceSignature;
+    return next;
+  }
 
   const seededProducts = Array.isArray(seed.products) ? seed.products : [];
   const currentProducts = Array.isArray(next.products) ? next.products : [];
@@ -44,7 +51,7 @@ function readDb(): AnyRecord {
   const raw = localStorage.getItem(KEY);
   if (raw === cachedRaw && cachedDb) return cachedDb;
   if (!raw) {
-    const serializedSeed = JSON.stringify(normalizedSeed);
+    const serializedSeed = JSON.stringify(syncSeedData(normalizedSeed));
     localStorage.setItem(KEY, serializedSeed);
     cachedRaw = serializedSeed;
     cachedDb = structuredClone(normalizedSeed);
@@ -95,6 +102,9 @@ export const mockService = {
   },
   update<T extends AnyRecord>(collection:string,id:any,patch:Partial<T>) {
     const db=readDb(); db[collection]=(db[collection]||[]).map((x:any)=>x.id===id?{...x,...patch}:x); writeDb(db);
+  },
+  replace<T extends AnyRecord>(collection: string, items: T[]) {
+    const db = readDb(); db[collection] = structuredClone(items); writeDb(db);
   },
   remove(collection:string,id:any) {
     const db=readDb(); db[collection]=(db[collection]||[]).filter((x:any)=>x.id!==id); writeDb(db);

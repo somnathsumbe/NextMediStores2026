@@ -21,12 +21,7 @@ type ProductRecord = {
   expiryDate: string;
   drugContent: string;
   packingDescription: string;
-  replacement: boolean;
-  discountAllow: boolean;
-  dpcoProduct: boolean;
   availableQuantity: number;
-  drugGroup: string;
-  unitType: string;
   unitQuantity: number;
   hsnCode: string;
   hsn?: string;
@@ -43,15 +38,10 @@ type ProductForm = {
   gstPercentage: string;
   retailerMargin: string;
   availableQuantity: string;
-  unitType: string;
   unitQuantity: string;
   manufactureDate: string;
   expiryDate: string;
-  drugGroup: string;
   hsn: string;
-  replacement: boolean;
-  discountAllow: boolean;
-  dpcoProduct: boolean;
 };
 
 type FormErrors = Partial<Record<keyof ProductForm, string>>;
@@ -80,12 +70,7 @@ function normalizeProduct(item: Partial<ProductRecord>): ProductRecord {
     expiryDate: item.expiryDate ?? "",
     drugContent: item.drugContent ?? "",
     packingDescription: item.packingDescription ?? "",
-    replacement: Boolean(item.replacement ?? false),
-    discountAllow: Boolean(item.discountAllow ?? false),
-    dpcoProduct: Boolean(item.dpcoProduct ?? false),
     availableQuantity: Number(item.availableQuantity ?? 0),
-    drugGroup: item.drugGroup ?? "",
-    unitType: item.unitType ?? "",
     unitQuantity: Number(item.unitQuantity ?? 0),
     hsnCode: item.hsnCode ?? item.hsn ?? "",
   };
@@ -102,15 +87,10 @@ const initialForm: ProductForm = {
   gstPercentage: "",
   retailerMargin: "20",
   availableQuantity: "0",
-  unitType: "",
   unitQuantity: "0",
   manufactureDate: "",
   expiryDate: "",
-  drugGroup: "",
   hsn: "",
-  replacement: false,
-  discountAllow: false,
-  dpcoProduct: false,
 };
 
 function parseDate(value: string) {
@@ -125,8 +105,6 @@ function getValidationErrors(form: ProductForm, hsnOptions: HsnRecord[]): FormEr
   if (!form.manufacturer.trim()) errors.manufacturer = "Manufacturer is required";
   if (!form.batchNumber.trim()) errors.batchNumber = "Batch number is required.";
   if (!form.drugContent.trim()) errors.drugContent = "Drug content is required.";
-  if (!form.drugGroup.trim()) errors.drugGroup = "Drug group is required.";
-  if (!form.unitType.trim()) errors.unitType = "Unit is required.";
   if (!form.hsn.trim()) errors.hsn = "HSN is required.";
   else if (!/^\d{4}$/.test(form.hsn) || !hsnOptions.some((record) => record.hsnCode === form.hsn)) errors.hsn = "Select a valid active four-digit HSN code.";
 
@@ -218,30 +196,15 @@ export default function NewProductPage() {
       gstPercentage: String(normalized.gst ?? ""),
       retailerMargin: String(normalized.retailerMargin ?? 20),
       availableQuantity: String(normalized.availableQuantity ?? 0),
-      unitType: normalized.unitType,
       unitQuantity: String(normalized.unitQuantity ?? 0),
       manufactureDate: normalized.manufactureDate ?? "",
       expiryDate: normalized.expiryDate ?? "",
-      drugGroup: normalized.drugGroup,
       hsn: normalized.hsnCode,
-      replacement: Boolean(normalized.replacement ?? false),
-      discountAllow: Boolean(normalized.discountAllow ?? false),
-      dpcoProduct: Boolean(normalized.dpcoProduct ?? false),
     });
   }, [searchParams]);
 
   const manufacturerOptions = useMemo(() => {
     const values = getProducts().map((item) => item.manufacturer).filter(Boolean);
-    return Array.from(new Set(values));
-  }, [searchParams]);
-
-  const drugGroupOptions = useMemo(() => {
-    const values = getProducts().map((item) => item.drugGroup).filter(Boolean);
-    return Array.from(new Set(values));
-  }, [searchParams]);
-
-  const unitOptions = useMemo(() => {
-    const values = getProducts().map((item) => item.unitType).filter(Boolean);
     return Array.from(new Set(values));
   }, [searchParams]);
 
@@ -308,12 +271,7 @@ export default function NewProductPage() {
       expiryDate: form.expiryDate,
       drugContent: form.drugContent.trim(),
       packingDescription: form.packingDescription.trim(),
-      replacement: form.replacement,
-      discountAllow: form.discountAllow,
-      dpcoProduct: form.dpcoProduct,
       availableQuantity: Number(form.availableQuantity || 0),
-      drugGroup: form.drugGroup.trim(),
-      unitType: form.unitType.trim(),
       unitQuantity: Number(form.unitQuantity || 0),
       hsnCode: form.hsn.trim(),
     };
@@ -322,10 +280,7 @@ export default function NewProductPage() {
       mockService.update("products", editingId, payload);
       window.sessionStorage.setItem("productToast", "Product updated successfully");
     } else {
-      const products = mockService.get<ProductRecord>("products");
-      const nextProducts = [payload, ...products.filter((item) => Number(item.id) !== Number(payload.id))];
-      mockService.reset();
-      nextProducts.forEach((item) => mockService.save("products", item));
+      mockService.save("products", payload);
       window.sessionStorage.setItem("productToast", "Product created successfully");
     }
 
@@ -333,34 +288,6 @@ export default function NewProductPage() {
       router.push("/products");
     }, 600);
   };
-
-  const renderBooleanToggle = (
-    label: string,
-    value: boolean,
-    onToggle: (nextValue: boolean) => void,
-  ) => (
-    <div className="col-md-4">
-      <label className="form-label d-block mb-2">{label}</label>
-      <div className="btn-group w-100" role="group" aria-label={label}>
-        <button
-          type="button"
-          className={`btn ${value ? "btn-primary" : "btn-outline-secondary"}`}
-          aria-pressed={value}
-          onClick={() => onToggle(true)}
-        >
-          Yes
-        </button>
-        <button
-          type="button"
-          className={`btn ${!value ? "btn-primary" : "btn-outline-secondary"}`}
-          aria-pressed={!value}
-          onClick={() => onToggle(false)}
-        >
-          No
-        </button>
-      </div>
-    </div>
-  );
 
   return (
     <div className="page py-4">
@@ -616,42 +543,6 @@ export default function NewProductPage() {
 
               <div className="row g-3">
                 <div className="col-xl-4 col-md-6">
-                  <label htmlFor="drugGroup" className="form-label">Drug Group <span className="text-danger">*</span></label>
-                  <input
-                    id="drugGroup"
-                    list="drug-group-options"
-                    className={`form-control ${errors.drugGroup ? "is-invalid" : ""}`}
-                    placeholder="Select drug group"
-                    value={form.drugGroup}
-                    onChange={(event) => handleChange("drugGroup", event.target.value)}
-                  />
-                  <datalist id="drug-group-options">
-                    {drugGroupOptions.map((option) => (
-                      <option key={option} value={option} />
-                    ))}
-                  </datalist>
-                  {errors.drugGroup && <div className="invalid-feedback d-block">{errors.drugGroup}</div>}
-                </div>
-
-                <div className="col-xl-4 col-md-6">
-                  <label htmlFor="unitType" className="form-label">Unit Type <span className="text-danger">*</span></label>
-                  <input
-                    id="unitType"
-                    list="unit-options"
-                    className={`form-control ${errors.unitType ? "is-invalid" : ""}`}
-                    placeholder="Select unit"
-                    value={form.unitType}
-                    onChange={(event) => handleChange("unitType", event.target.value)}
-                  />
-                  <datalist id="unit-options">
-                    {unitOptions.map((option) => (
-                      <option key={option} value={option} />
-                    ))}
-                  </datalist>
-                  {errors.unitType && <div className="invalid-feedback d-block">{errors.unitType}</div>}
-                </div>
-
-                <div className="col-xl-4 col-md-6">
                   <label htmlFor="unitQuantity" className="form-label">Unit Quantity <span className="text-danger">*</span></label>
                   <input
                     id="unitQuantity"
@@ -704,23 +595,6 @@ export default function NewProductPage() {
                   />
                   {errors.expiryDate && <div className="invalid-feedback d-block">{errors.expiryDate}</div>}
                 </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="card border-0 rounded-3 shadow-sm mb-4">
-            <div className="card-body p-4 p-lg-5">
-              <div className="d-flex align-items-center gap-2 mb-4">
-                <span className="d-inline-flex align-items-center justify-content-center rounded-2 bg-success-subtle text-success" style={{ width: 38, height: 38 }}>
-                  <i className="bi bi-sliders" aria-hidden="true" />
-                </span>
-                <h2 className="h4 mb-0">Product Settings</h2>
-              </div>
-
-              <div className="row g-4">
-                {renderBooleanToggle("Replacement", form.replacement, (nextValue) => handleChange("replacement", nextValue))}
-                {renderBooleanToggle("Discount Allow", form.discountAllow, (nextValue) => handleChange("discountAllow", nextValue))}
-                {renderBooleanToggle("DPCO Product", form.dpcoProduct, (nextValue) => handleChange("dpcoProduct", nextValue))}
               </div>
             </div>
           </section>

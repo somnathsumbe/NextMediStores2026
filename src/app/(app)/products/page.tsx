@@ -17,48 +17,33 @@ type ProductRecord = {
   expiryDate: string;
   drugContent: string;
   packingDescription: string;
-  replacement: boolean;
-  discountAllow: boolean;
-  dpcoProduct: boolean;
   availableQuantity: number;
-  drugGroup: string;
-  unitType: string;
   unitQuantity: number;
   hsn: string;
   hsnCode?: string;
 };
 
 type QuickFilter = "all" | "low-stock" | "out-of-stock" | "expiring-soon" | "expired";
-type SortKey = "productName" | "manufacturer" | "mrp" | "ptrSellRate" | "availableQuantity" | "manufactureDate" | "expiryDate";
+type SortKey = "productName" | "batchNumber" | "mrp" | "gst" | "retailerMargin" | "ptrSellRate" | "manufacturer" | "manufactureDate" | "expiryDate" | "drugContent" | "packingDescription" | "availableQuantity" | "unitQuantity" | "hsn";
 type SortDirection = "asc" | "desc";
 type StockStatus = "all" | "available" | "low" | "out";
 type ExpiryStatus = "all" | "valid" | "expiring-30" | "expiring-90" | "expired";
-type YesNoFilter = "all" | "yes" | "no";
-
 type FilterState = {
   manufacturer: string;
-  drugGroup: string;
   hsn: string;
   batchNumber: string;
   maxStock: string;
   stockStatus: StockStatus;
   expiryStatus: ExpiryStatus;
-  replacement: YesNoFilter;
-  discountAllow: YesNoFilter;
-  dpcoProduct: YesNoFilter;
 };
 
 const initialFilters: FilterState = {
   manufacturer: "",
-  drugGroup: "",
   hsn: "",
   batchNumber: "",
   maxStock: "",
   stockStatus: "all",
   expiryStatus: "all",
-  replacement: "all",
-  discountAllow: "all",
-  dpcoProduct: "all",
 };
 
 function money(value: number) {
@@ -102,21 +87,10 @@ function formatPercent(value: number | string | null | undefined) {
   return `${formatted}%`;
 }
 
-function formatBooleanValue(value: boolean | null | undefined) {
-  if (value === true) {
-    return <span className="badge bg-success-subtle text-success rounded-pill px-2 py-1">Yes</span>;
-  }
-  if (value === false) {
-    return <span className="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-1">No</span>;
-  }
-  return "-";
-}
-
-function formatQuantityWithUnit(quantity: number | string | null | undefined, unit: string | null | undefined) {
+function formatQuantity(quantity: number | string | null | undefined) {
   const numericValue = Number(quantity);
   if (!Number.isFinite(numericValue)) return "-";
-  const nextUnit = unit || "";
-  return `${numericValue} ${nextUnit}`.trim();
+  return String(numericValue);
 }
 
 function getDaysLeft(dateString: string) {
@@ -155,12 +129,7 @@ function normalizeProduct(item: Partial<ProductRecord>): ProductRecord {
     expiryDate: item.expiryDate ?? "",
     drugContent: item.drugContent ?? "",
     packingDescription: item.packingDescription ?? "",
-    replacement: Boolean(item.replacement),
-    discountAllow: Boolean(item.discountAllow),
-    dpcoProduct: Boolean(item.dpcoProduct),
     availableQuantity: Number(item.availableQuantity ?? 0),
-    drugGroup: item.drugGroup ?? "",
-    unitType: item.unitType ?? "",
     unitQuantity: Number(item.unitQuantity ?? 0),
     hsn: item.hsnCode ?? item.hsn ?? "",
   };
@@ -197,7 +166,7 @@ function ViewProductModal({
   onClose: () => void;
   onEdit: (product: ProductRecord) => void;
 }) {
-  const qtyText = formatQuantityWithUnit(product.availableQuantity, product.unitType);
+  const qtyText = formatQuantity(product.availableQuantity);
 
   return (
     <div className="modal fade show d-block" tabIndex={-1} role="dialog" style={{ background: "rgba(0, 0, 0, 0.45)" }}>
@@ -249,7 +218,6 @@ function ViewProductModal({
                   <div className="d-grid gap-2">
                     <div><div className="small text-secondary">Available Quantity</div><div className="fw-semibold">{qtyText}</div></div>
                     <div><div className="small text-secondary">Unit Quantity</div><div className="fw-semibold">{product.unitQuantity ?? 0}</div></div>
-                    <div><div className="small text-secondary">Unit Type</div><div className="fw-semibold">{product.unitType || "-"}</div></div>
                   </div>
                 </div>
               </div>
@@ -258,21 +226,9 @@ function ViewProductModal({
                 <div className="border rounded-3 bg-light px-2 py-2 h-100">
                   <div className="small fw-semibold text-secondary mb-2 text-uppercase">Product Details</div>
                   <div className="d-grid gap-2">
-                    <div><div className="small text-secondary">Drug Group</div><div className="fw-semibold">{product.drugGroup || "-"}</div></div>
                     <div><div className="small text-secondary">HSN</div><div className="fw-semibold">{product.hsn || "-"}</div></div>
                     <div><div className="small text-secondary">Manufacture Date</div><div className="fw-semibold">{formatDisplayDate(product.manufactureDate)}</div></div>
                     <div><div className="small text-secondary">Expiry Date</div><div className="fw-semibold">{formatDisplayDate(product.expiryDate)}</div></div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="col-12 col-md-6 col-xl-4">
-                <div className="border rounded-3 bg-light px-2 py-2 h-100">
-                  <div className="small fw-semibold text-secondary mb-2 text-uppercase">Product Settings</div>
-                  <div className="d-grid gap-2">
-                    <div className="d-flex justify-content-between align-items-center gap-2"><span className="small text-secondary">Replacement</span>{formatBooleanValue(product.replacement)}</div>
-                    <div className="d-flex justify-content-between align-items-center gap-2"><span className="small text-secondary">Discount Allow</span>{formatBooleanValue(product.discountAllow)}</div>
-                    <div className="d-flex justify-content-between align-items-center gap-2"><span className="small text-secondary">DPCO Product</span>{formatBooleanValue(product.dpcoProduct)}</div>
                   </div>
                 </div>
               </div>
@@ -379,10 +335,6 @@ export default function ProductsPage() {
     () => Array.from(new Set(products.map((product) => product.manufacturer).filter(Boolean))).sort(),
     [products],
   );
-  const drugGroups = useMemo(
-    () => Array.from(new Set(products.map((product) => product.drugGroup).filter(Boolean))).sort(),
-    [products],
-  );
   const hsnCodes = useMemo(
     () => Array.from(new Set(products.map((product) => product.hsn).filter(Boolean))).sort(),
     [products],
@@ -415,7 +367,6 @@ export default function ProductsPage() {
       })();
 
       const matchesManufacturer = !appliedFilters.manufacturer || product.manufacturer === appliedFilters.manufacturer;
-      const matchesDrugGroup = !appliedFilters.drugGroup || product.drugGroup === appliedFilters.drugGroup;
       const matchesHsn = !appliedFilters.hsn || product.hsn === appliedFilters.hsn;
       const batchNumberValue = (appliedFilters.batchNumber || "").trim().toLowerCase();
       const matchesBatchNumber = !batchNumberValue || (product.batchNumber || "").toLowerCase().includes(batchNumberValue);
@@ -441,23 +392,15 @@ export default function ProductsPage() {
         return true;
       })();
 
-      const matchesReplacement = appliedFilters.replacement === "all" || String(product.replacement).toLowerCase() === appliedFilters.replacement;
-      const matchesDiscount = appliedFilters.discountAllow === "all" || String(product.discountAllow).toLowerCase() === appliedFilters.discountAllow;
-      const matchesDpco = appliedFilters.dpcoProduct === "all" || String(product.dpcoProduct).toLowerCase() === appliedFilters.dpcoProduct;
-
       return (
         matchesSearch &&
         matchesQuick &&
         matchesManufacturer &&
-        matchesDrugGroup &&
         matchesHsn &&
         matchesBatchNumber &&
         matchesMaxStock &&
         matchesStockStatus &&
-        matchesExpiryStatus &&
-        matchesReplacement &&
-        matchesDiscount &&
-        matchesDpco
+        matchesExpiryStatus
       );
     });
   }, [products, search, quickFilter, appliedFilters]);
@@ -759,44 +702,6 @@ export default function ProductsPage() {
                     </select>
                   </div>
 
-                  <div className="col-lg-3 col-md-6">
-                    <label className="form-label">Replacement</label>
-                    <select
-                      className="form-select"
-                      value={draftFilters.replacement}
-                      onChange={(event) => updateDraft("replacement", event.target.value as YesNoFilter)}
-                    >
-                      <option value="all">All</option>
-                      <option value="yes">Yes</option>
-                      <option value="no">No</option>
-                    </select>
-                  </div>
-
-                  <div className="col-lg-3 col-md-6">
-                    <label className="form-label">Discount Allow</label>
-                    <select
-                      className="form-select"
-                      value={draftFilters.discountAllow}
-                      onChange={(event) => updateDraft("discountAllow", event.target.value as YesNoFilter)}
-                    >
-                      <option value="all">All</option>
-                      <option value="yes">Yes</option>
-                      <option value="no">No</option>
-                    </select>
-                  </div>
-
-                  <div className="col-lg-3 col-md-6">
-                    <label className="form-label">DPCO Product</label>
-                    <select
-                      className="form-select"
-                      value={draftFilters.dpcoProduct}
-                      onChange={(event) => updateDraft("dpcoProduct", event.target.value as YesNoFilter)}
-                    >
-                      <option value="all">All</option>
-                      <option value="yes">Yes</option>
-                      <option value="no">No</option>
-                    </select>
-                  </div>
                 </div>
 
                 <div className="d-flex justify-content-end gap-2 mt-4">
@@ -853,13 +758,20 @@ export default function ProductsPage() {
                   <thead className="table-light">
                     <tr>
                       {[
-                        ["productName", "Product"],
+                        ["productName", "Product Name"],
                         ["batchNumber", "Batch Number"],
                         ["mrp", "MRP"],
-                        ["ptrSellRate", "PTR (Sell Rate)"],
-                        ["availableQuantity", "Stock"],
-                        ["availableQuantity", "Stock"],
-                        ["expiryDate", "Expiry"],
+                        ["gst", "GST"],
+                        ["retailerMargin", "Retailer Margin"],
+                        ["ptrSellRate", "PTR Sell Rate"],
+                        ["manufacturer", "Manufacturer"],
+                        ["manufactureDate", "Manufacture Date"],
+                        ["expiryDate", "Expiry Date"],
+                        ["drugContent", "Drug Content"],
+                        ["packingDescription", "Packing Description"],
+                        ["availableQuantity", "Available Quantity"],
+                        ["unitQuantity", "Unit Quantity"],
+                        ["hsn", "HSN"],
                       ].map(([key, label]) => (
                         <th key={key} className="fw-semibold text-secondary small text-uppercase" style={{ whiteSpace: "nowrap" }}>
                           <button
@@ -915,20 +827,27 @@ export default function ProductsPage() {
                           </td>
                           <td>{product.batchNumber || "—"}</td>
                           <td>{money(product.mrp)}</td>
+                          <td>{formatPercent(product.gst)}</td>
+                          <td>{formatPercent(product.retailerMargin)}</td>
                           <td>{money(product.ptrSellRate ?? product.mrp)}</td>
-                          <td>
-                            <div className="d-flex flex-column align-items-start gap-1">
-                              <span className="fw-semibold">{product.availableQuantity}</span>
-                              <span className={`badge rounded-pill ${stockBadgeClass}`}>{stockStatus}</span>
-                            </div>
-                          </td>
-                          <td>{product.availableQuantity}</td>
+                          <td>{product.manufacturer || "—"}</td>
+                          <td>{formatDate(product.manufactureDate)}</td>
                           <td>
                             <div className="d-flex flex-column align-items-start gap-1">
                               <span>{formatDate(product.expiryDate)}</span>
                               <span className={`badge rounded-pill ${expiryBadgeClass}`}>{expiryStatus}</span>
                             </div>
                           </td>
+                          <td>{product.drugContent || "—"}</td>
+                          <td>{product.packingDescription || "—"}</td>
+                          <td>
+                            <div className="d-flex flex-column align-items-start gap-1">
+                              <span className="fw-semibold">{product.availableQuantity}</span>
+                              <span className={`badge rounded-pill ${stockBadgeClass}`}>{stockStatus}</span>
+                            </div>
+                          </td>
+                          <td>{product.unitQuantity}</td>
+                          <td>{product.hsn || "—"}</td>
                           <td>
                             <div className="d-flex gap-2">
                               <button type="button" className="btn btn-sm btn-light" onClick={() => setViewProduct(product)} aria-label={`View ${product.productName}`}>
