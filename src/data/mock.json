@@ -160,29 +160,6 @@
       "contact": "9876511111"
     }
   ],
-  "users": [
-    {
-      "id": 1,
-      "name": "Admin User",
-      "username": "admin",
-      "role": "Administrator",
-      "status": "Active"
-    },
-    {
-      "id": 2,
-      "name": "Sales Executive",
-      "username": "sales",
-      "role": "MR / Field Sales",
-      "status": "Active"
-    },
-    {
-      "id": 3,
-      "name": "Accounts User",
-      "username": "accounts",
-      "role": "Accounts",
-      "status": "Active"
-    }
-  ],
   "salesOrders": [
     {
       "id": "SO-1001",

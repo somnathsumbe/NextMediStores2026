@@ -3,7 +3,6 @@ export type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-const DISMISSED_KEY = "medistores-pwa-install-dismissed";
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
 let installed = false;
 const listeners = new Set<() => void>();
@@ -37,20 +36,6 @@ export function isPwaInstalled() {
   if (installed) return true;
   return window.matchMedia("(display-mode: standalone)").matches
     || Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
-}
-
-export function wasPwaInstallDismissed() {
-  try { return window.localStorage.getItem(DISMISSED_KEY) === "1"; } catch { return false; }
-}
-
-export function dismissPwaInstall() {
-  try { window.localStorage.setItem(DISMISSED_KEY, "1"); } catch { /* Storage can be unavailable in private mode. */ }
-  notify();
-}
-
-export function reopenPwaInstall() {
-  try { window.localStorage.removeItem(DISMISSED_KEY); } catch { /* Ignore unavailable storage. */ }
-  notify();
 }
 
 export async function promptPwaInstall() {
