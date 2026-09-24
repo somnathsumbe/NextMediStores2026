@@ -20,7 +20,8 @@
       "drugLicenceNumber": "MH-PN-2024012",
       "drugLicenceExpiry": "2027-09-20",
       "foodLicenceNo": "11526018000123",
-      "gstn": "27ABCDE1234F1Z5",
+      "registeredGSTN": true,
+      "gstnNumber": "27ABCDE1234F1Z5",
       "scheme": "Scheme 1",
       "discount": 5,
       "paymentTerms": "30 Days",
@@ -51,7 +52,8 @@
       "drugLicenceNumber": "MH-MU-2019881",
       "drugLicenceExpiry": "2027-12-15",
       "foodLicenceNo": "11526018000456",
-      "gstn": "27BCDEF2345G1Z4",
+      "registeredGSTN": true,
+      "gstnNumber": "27BCDEF2345G1Z4",
       "scheme": "Scheme 2",
       "discount": 3,
       "paymentTerms": "15 Days",
@@ -65,6 +67,5 @@
       "whatsappNumber": "9822001122",
       "notes": "Retail outlet"
     }
-    
   ]
 }

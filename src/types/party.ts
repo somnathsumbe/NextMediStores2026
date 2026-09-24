@@ -1,0 +1,36 @@
+export type CustomerType = "Dealer" | "Retailer" | "Other";
+export type PartyStatus = "Active" | "Inactive";
+export type OpeningBalanceType = "Debit" | "Credit";
+
+export type Party = {
+  id: number;
+  firmName: string;
+  ownerName: string;
+  pharmacistName: string;
+  customerType: CustomerType;
+  active: boolean;
+  email: string;
+  phone: string;
+  alternatePhone: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  drugLicenceNumber: string;
+  drugLicenceExpiry: string;
+  foodLicenceNo: string;
+  registeredGSTN: boolean;
+  gstnNumber: string;
+  scheme: string;
+  discount: number;
+  paymentTerms: string;
+  creditLimit: number;
+  openingBalance: number;
+  openingBalanceType: OpeningBalanceType;
+  closingBalance: number;
+  outstandingBalance: number;
+  creditLocked: boolean;
+  contactPerson: string;
+  whatsappNumber: string;
+  notes: string;
+};
