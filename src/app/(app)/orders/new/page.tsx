@@ -248,10 +248,12 @@ function productMatchesSearch(product: ProductRecord, query: string) {
 export default function OrdersNewPage() {
   const router = useRouter();
   const toastTimeoutRef = useRef<number | null>(null);
+  const supplierDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const [products, setProducts] = useState<ProductRecord[]>([]);
   const [suppliers, setSuppliers] = useState<Party[]>([]);
   const [supplierSearch, setSupplierSearch] = useState("");
+  const [supplierDropdownOpen, setSupplierDropdownOpen] = useState(false);
   const [transporters, setTransporters] = useState<TransportRecord[]>([]);
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder>(emptyOrder());
   const [showSelector, setShowSelector] = useState(false);
@@ -278,6 +280,19 @@ export default function OrdersNewPage() {
       window.clearTimeout(toastTimeoutRef.current);
     }
   }, []);
+
+  useEffect(() => {
+    if (!supplierDropdownOpen) return;
+
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (supplierDropdownRef.current && !supplierDropdownRef.current.contains(event.target as Node)) {
+        setSupplierDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, [supplierDropdownOpen]);
 
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ type, message });
@@ -587,30 +602,38 @@ export default function OrdersNewPage() {
 
               <div className="col-md-6 col-xl-3">
                 <label className="form-label">Supplier <span className="text-danger">*</span></label>
-                <input
-                  list="supplier-list"
-                  className={`form-select ${headerErrors.supplierId ? "is-invalid" : ""}`}
-                  value={supplierSearch}
-                  onChange={(event) => {
-                    const selected = suppliers.find((supplier) => supplier.firmName === event.target.value);
-                    setSupplierSearch(event.target.value);
-                    updateHeaderField("supplierId", selected ? String(selected.id) : "");
-                  }}
-                  placeholder="Search supplier"
-                />
-                <datalist id="supplier-list">
-                  {filteredSuppliers.map((supplier) => <option key={supplier.id} value={supplier.firmName} />)}
-                </datalist>
-                <div className="list-group mt-2" style={{ maxHeight: 260, overflowY: "auto" }}>
-                  {filteredSuppliers.map((supplier) => (
-                    <button key={supplier.id} type="button" className={`list-group-item list-group-item-action small ${String(purchaseOrder.supplierId) === String(supplier.id) ? "active" : ""}`} onClick={() => {
-                      setSupplierSearch(supplier.firmName);
-                      updateHeaderField("supplierId", String(supplier.id));
-                    }}>
-                      <span className="fw-semibold">{supplier.firmName}</span><span className="text-muted">{supplier.city ? ` · ${supplier.city}` : ""}</span>
-                    </button>
-                  ))}
-                  {!filteredSuppliers.length && <div className="list-group-item small text-muted">No Supplier records found in Party Master.</div>}
+                <div ref={supplierDropdownRef} className="position-relative">
+                  <input
+                    className={`form-control ${headerErrors.supplierId ? "is-invalid" : ""}`}
+                    value={supplierSearch}
+                    onFocus={() => setSupplierDropdownOpen(true)}
+                    onClick={() => setSupplierDropdownOpen(true)}
+                    onChange={(event) => {
+                      const selected = suppliers.find((supplier) => supplier.firmName === event.target.value);
+                      setSupplierSearch(event.target.value);
+                      updateHeaderField("supplierId", selected ? String(selected.id) : "");
+                      setSupplierDropdownOpen(true);
+                    }}
+                    placeholder="Search supplier"
+                    aria-expanded={supplierDropdownOpen}
+                    aria-controls="supplier-dropdown"
+                  />
+                  {supplierDropdownOpen && (
+                    <div id="supplier-dropdown" className="position-absolute start-0 top-100 w-100 bg-white border rounded-3 shadow-lg mt-1" style={{ zIndex: 1055, maxHeight: 280, overflowY: "auto" }}>
+                      <div className="list-group list-group-flush">
+                        {filteredSuppliers.map((supplier) => (
+                          <button key={supplier.id} type="button" className={`list-group-item list-group-item-action small ${String(purchaseOrder.supplierId) === String(supplier.id) ? "active" : ""}`} onClick={() => {
+                            setSupplierSearch(supplier.firmName);
+                            updateHeaderField("supplierId", String(supplier.id));
+                            setSupplierDropdownOpen(false);
+                          }}>
+                            <span className="fw-semibold">{supplier.firmName}</span><span className="text-muted">{supplier.city ? ` · ${supplier.city}` : ""}</span>
+                          </button>
+                        ))}
+                        {!filteredSuppliers.length && <div className="list-group-item small text-muted">No Supplier records found in Party Master.</div>}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 {headerErrors.supplierId && <div className="invalid-feedback d-block">{headerErrors.supplierId}</div>}
               </div>
@@ -964,20 +987,50 @@ export default function OrdersNewPage() {
 
         <div className="card border-0 shadow-sm rounded-4 mb-4">
           <div className="card-body p-3 p-lg-4">
-            <h2 className="h5 mb-4">Order Summary</h2>
-            <div className="row g-3">
-              <div className="col-md-6 col-xl-3"><div className="small text-muted">Total Items</div><div className="fs-5 fw-semibold">{summary.totalItems}</div></div>
-              <div className="col-md-6 col-xl-3"><div className="small text-muted">Total Quantity</div><div className="fs-5 fw-semibold">{summary.totalQuantity}</div></div>
-              <div className="col-md-6 col-xl-3"><div className="small text-muted">Grand Total</div><div className="fs-5 fw-semibold text-primary">{formatCurrency(summary.grandTotal)}</div></div>
+            <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 border-bottom pb-3 mb-3">
+              <div>
+                <div className="text-uppercase small fw-semibold text-primary">Purchase summary</div>
+                <h2 className="h5 mb-0 mt-1">Order Summary</h2>
+              </div>
+              <div className="text-sm-end">
+                <div className="small text-muted">Grand Total</div>
+                <div className="h3 mb-0 fw-bold text-primary">{formatCurrency(summary.grandTotal)}</div>
+              </div>
             </div>
-            <div className="row g-3 mt-1">
-              <div className="col-md-6 col-xl-4"><div className="small text-muted">Gross Amount</div><div className="fw-semibold">{formatCurrency(summary.subtotal)}</div></div>
-              <div className="col-md-6 col-xl-4"><div className="small text-muted">Discount</div><div className="fw-semibold">{formatCurrency(summary.discount)}</div></div>
-              <div className="col-md-6 col-xl-4"><div className="small text-muted">Taxable Amount</div><div className="fw-semibold">{formatCurrency(summary.taxableAmount)}</div></div>
-              <div className="col-md-6 col-xl-3"><div className="small text-muted">CGST</div><div className="fw-semibold">{formatCurrency(summary.cgst)}</div></div>
-              <div className="col-md-6 col-xl-3"><div className="small text-muted">SGST</div><div className="fw-semibold">{formatCurrency(summary.sgst)}</div></div>
-              <div className="col-md-6 col-xl-3"><div className="small text-muted">IGST</div><div className="fw-semibold">{formatCurrency(summary.igst)}</div></div>
-              <div className="col-md-6 col-xl-3"><div className="small text-muted">Round Off</div><div className="fw-semibold">{formatCurrency(summary.roundOff)}</div></div>
+
+            <div className="row g-2 g-md-3 mb-3">
+              <div className="col-6 col-lg-3">
+                <div className="border rounded-3 p-3 h-100 bg-light-subtle">
+                  <div className="small text-muted">Total Items</div>
+                  <div className="fs-5 fw-semibold mt-1">{summary.totalItems}</div>
+                </div>
+              </div>
+              <div className="col-6 col-lg-3">
+                <div className="border rounded-3 p-3 h-100 bg-light-subtle">
+                  <div className="small text-muted">Total Quantity</div>
+                  <div className="fs-5 fw-semibold mt-1">{summary.totalQuantity}</div>
+                </div>
+              </div>
+              <div className="col-6 col-lg-3">
+                <div className="border rounded-3 p-3 h-100">
+                  <div className="small text-muted">Gross Amount</div>
+                  <div className="fw-semibold mt-1">{formatCurrency(summary.subtotal)}</div>
+                </div>
+              </div>
+              <div className="col-6 col-lg-3">
+                <div className="border rounded-3 p-3 h-100">
+                  <div className="small text-muted">Taxable Amount</div>
+                  <div className="fw-semibold mt-1">{formatCurrency(summary.taxableAmount)}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="row g-2 g-md-3">
+              <div className="col-6 col-md-3"><div className="px-2 py-1"><div className="small text-muted">Discount</div><div className="fw-semibold">{formatCurrency(summary.discount)}</div></div></div>
+              <div className="col-6 col-md-3"><div className="px-2 py-1"><div className="small text-muted">CGST</div><div className="fw-semibold">{formatCurrency(summary.cgst)}</div></div></div>
+              <div className="col-6 col-md-3"><div className="px-2 py-1"><div className="small text-muted">SGST</div><div className="fw-semibold">{formatCurrency(summary.sgst)}</div></div></div>
+              <div className="col-6 col-md-3"><div className="px-2 py-1"><div className="small text-muted">IGST</div><div className="fw-semibold">{formatCurrency(summary.igst)}</div></div></div>
+              <div className="col-6 col-md-3"><div className="px-2 py-1"><div className="small text-muted">Round Off</div><div className="fw-semibold">{formatCurrency(summary.roundOff)}</div></div></div>
             </div>
           </div>
         </div>
