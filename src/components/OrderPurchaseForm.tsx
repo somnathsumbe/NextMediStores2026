@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import productsData from "@/data/products.json";
 import customersData from "@/data/customers.json";
-import transportationData from "@/data/transportation.json";
+import transportationData from "@/data/transport-details.json";
 import schemesData from "@/data/schemes.json";
 import { mockService } from "@/lib/mock-service";
 import { salesmanService } from "@/lib/salesman-service";
@@ -108,7 +108,12 @@ type ProductFilter = "all" | "in-stock" | "low-stock" | "out-of-stock" | "valid"
 
 const products = productsData as ProductRecord[];
 const customers = customersData as CustomerRecord[];
-const transports = transportationData as TransportRecord[];
+const transports: TransportRecord[] = transportationData.records.map((record) => ({
+  id: record.id,
+  name: record.name,
+  vehicleNumber: "",
+  contactNumber: "",
+}));
 const schemes = schemesData as SchemeRecord[];
 const PAYMENT_OPTIONS = ["Cash", "Cheque", "Other"];
 const UOM_OPTIONS = ["Numbers", "Bottle", "Box", "Strip", "Pack", "Carton"];

@@ -1,4 +1,4 @@
-export type CustomerType = "Dealer" | "Retailer" | "Other";
+export type CustomerType = "Dealer" | "Retailer" | "Supplier" | "Other";
 export type PartyStatus = "Active" | "Inactive";
 export type OpeningBalanceType = "Debit" | "Credit";
 

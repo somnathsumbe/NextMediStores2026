@@ -15,7 +15,7 @@ function normalize(record: PartySeed): Party {
   return {
     ...record,
     id: Number(record.id),
-    customerType: record.customerType === "Retailer" || record.customerType === "Other" ? record.customerType : "Dealer",
+    customerType: record.customerType === "Retailer" || record.customerType === "Supplier" || record.customerType === "Other" ? record.customerType : "Dealer",
     registeredGSTN,
     gstnNumber: registeredGSTN ? String(record.gstnNumber ?? record.gstn ?? "").trim().toUpperCase() : "",
     active: Boolean(record.active),

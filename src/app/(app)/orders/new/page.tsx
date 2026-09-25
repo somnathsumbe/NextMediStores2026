@@ -4,6 +4,10 @@ import Link from "next/link";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { mockService } from "@/lib/mock-service";
+import { partyService } from "@/lib/party-service";
+import transportData from "@/data/transport-details.json";
+import schemesData from "@/data/schemes.json";
+import type { Party } from "@/types/party";
 import { calculatePurchaseItemAmount, calculatePurchaseOrderSummary } from "@/utils/purchase-order";
 
 type ProductRecord = {
@@ -21,16 +25,19 @@ type ProductRecord = {
   mrp?: number;
   gst?: number;
   gstPercentage?: number;
-  purchasePrice?: number;
   salePrice?: number;
+  sellRate?: number;
+  ptrSellRate?: number;
   availableQuantity?: number;
   stock?: number;
-  purchaseRate?: number;
   category?: string;
   categoryId?: string;
   drugGroup?: string;
   hsn?: string;
+  hsnCode?: string;
+  unitType?: string;
   manufactureDate?: string;
+  packingDescription?: string;
 };
 
 type PurchaseOrderItem = {
@@ -38,28 +45,42 @@ type PurchaseOrderItem = {
   productId: number | string;
   productName: string;
   manufacturer?: string;
-  scientificName?: string;
+  hsn?: string;
+  packageDescription?: string;
   batchNumber: string;
   manufactureDate?: string;
   expiryDate: string;
   quantity: number;
   freeQuantity: number;
   unit: string;
-  purchaseRate: number;
+  scheme: string;
+  sellRate: number;
   mrp: number;
   gst: number;
-  discount: number;
+  discountPercentage: number;
   amount: number;
-  holdSale: boolean;
+  holdSale?: boolean;
+};
+
+type TransportRecord = {
+  id: number | string;
+  name: string;
+  status?: string;
 };
 
 type PurchaseOrder = {
   id: number | string;
-  purchaseOrderNumber: string;
+  voucherNumber: number;
   orderDate: string;
   supplierId: number | string;
   purchaseType: string;
-  expectedDeliveryDate: string;
+  billNumber: string;
+  billDate: string;
+  billDueDate: string;
+  lrNumber: string;
+  dispatchDate: string;
+  totalBoxes: number;
+  godown: string;
   paymentMethod: string;
   paymentTerms: string;
   deliveryAddress: string;
@@ -76,6 +97,7 @@ type FormErrors = Record<string, string>;
 const paymentMethods = ["Cash", "Cheque", "Bank Transfer", "UPI", "Other"];
 const paymentTermsOptions = ["Immediate", "Net 7 Days", "Net 15 Days", "Net 30 Days", "Credit"];
 const purchaseTypes = ["Cash Purchase", "Credit Purchase", "Purchase Return"];
+const schemes = schemesData as Array<{ id: number; name: string }>;
 
 function formatCurrency(value: number | string | null | undefined) {
   const numeric = Number(value ?? 0);
@@ -89,16 +111,40 @@ function formatCurrency(value: number | string | null | undefined) {
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
-function generatePoNumber() {
-  const now = new Date();
-  const day = String(now.getDate()).padStart(2, "0");
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const year = String(now.getFullYear()).slice(-2);
-  const random = String(Math.floor(Math.random() * 8999) + 1000);
-  return `PO-${year}${month}${day}-${random}`;
+function tomorrowISO(value: string) {
+  if (!value) return "";
+  const date = new Date(`${value}T00:00:00`);
+  date.setDate(date.getDate() + 1);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function storedVoucherNumber(order: any) {
+  const value = Number(order.voucherNumber ?? order.purchaseOrderNumber);
+  if (Number.isFinite(value)) return value;
+  const legacyMatch = String(order.purchaseOrderNumber ?? order.id ?? "").match(/(\d+)$/);
+  return legacyMatch ? Number(legacyMatch[1]) : Number.NaN;
+}
+
+function nextVoucherNumber() {
+  const existing = mockService.get<any>("purchaseOrders");
+  const numbers = existing.map(storedVoucherNumber).filter((value) => Number.isFinite(value));
+  return (numbers.length ? Math.max(...numbers) : 0) + 1;
+}
+
+function formatLongDate(value: string) {
+  if (!value) return "";
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? "" : new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "2-digit", month: "short", year: "numeric" }).format(date);
 }
 
 function normalizeProduct(product: any): ProductRecord {
@@ -108,51 +154,52 @@ function normalizeProduct(product: any): ProductRecord {
     name: product.name || product.productName || "",
     manufacturer: product.manufacturer || product.brand || "",
     brand: product.brand || product.manufacturer || "",
-    scientificName: product.scientificName || "",
     batchNumber: product.batchNumber || product.batch || "",
     batch: product.batch || product.batchNumber || "",
     expiryDate: product.expiryDate || product.expiry || "",
     expiry: product.expiry || product.expiryDate || "",
-    unit: product.unit || "Strip",
+    unit: product.unit || product.unitType || "",
     mrp: Number(product.mrp ?? product.salePrice ?? product.purchasePrice ?? 0),
-    gst: Number(product.gst ?? product.gstPercentage ?? 12),
-    gstPercentage: Number(product.gstPercentage ?? product.gst ?? 12),
-    purchasePrice: Number(product.purchasePrice ?? product.purchaseRate ?? product.mrp ?? 0),
-    salePrice: Number(product.salePrice ?? product.mrp ?? product.purchasePrice ?? 0),
+    gst: Number(product.gst ?? product.gstPercentage ?? 0),
+    gstPercentage: Number(product.gstPercentage ?? product.gst ?? 0),
+    salePrice: Number(product.salePrice ?? product.sellRate ?? product.ptrSellRate ?? 0),
+    sellRate: Number(product.sellRate ?? product.ptrSellRate ?? product.salePrice ?? 0),
+    ptrSellRate: Number(product.ptrSellRate ?? product.sellRate ?? product.salePrice ?? 0),
     availableQuantity: Number(product.availableQuantity ?? product.stock ?? 0),
     stock: Number(product.stock ?? product.availableQuantity ?? 0),
-    purchaseRate: Number(product.purchaseRate ?? product.purchasePrice ?? product.mrp ?? 0),
     category: product.category || "General",
     categoryId: product.categoryId || "",
     drugGroup: product.drugGroup || product.category || "General",
-    hsn: product.hsn || "3004",
+    hsn: product.hsn || product.hsnCode || "",
     manufactureDate: product.manufactureDate || "",
+    packingDescription: product.packingDescription || "",
   };
 }
 
 function buildItemFromProduct(product: ProductRecord): PurchaseOrderItem {
   const productName = product.productName || product.name || "Unnamed Product";
-  const purchaseRate = Number(product.purchaseRate ?? product.purchasePrice ?? product.mrp ?? 0);
-  const mrp = Number(product.mrp ?? product.salePrice ?? purchaseRate ?? 0);
-  const gst = Number(product.gst ?? product.gstPercentage ?? 12);
+  const mrp = Number(product.mrp ?? 0);
+  const sellRate = Number(product.sellRate ?? product.ptrSellRate ?? product.salePrice ?? 0);
+  const gst = Number(product.gst ?? product.gstPercentage ?? 0);
   const item = {
     id: `${product.id}-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
     productId: product.id,
     productName,
     manufacturer: product.manufacturer || product.brand || "",
-    scientificName: product.scientificName || "",
+    hsn: product.hsn || product.hsnCode || "",
+    packageDescription: product.packingDescription || "",
     batchNumber: product.batchNumber || product.batch || "",
     manufactureDate: product.manufactureDate || "",
     expiryDate: product.expiryDate || product.expiry || "",
     quantity: 1,
     freeQuantity: 0,
-    unit: product.unit || "Strip",
-    purchaseRate,
+    unit: product.unit || product.unitType || "",
+    scheme: "No Scheme",
+    sellRate,
     mrp,
     gst,
-    discount: 0,
+    discountPercentage: 0,
     amount: 0,
-    holdSale: false,
   };
   return { ...item, amount: calculatePurchaseItemAmount(item).amount };
 }
@@ -160,11 +207,17 @@ function buildItemFromProduct(product: ProductRecord): PurchaseOrderItem {
 function emptyOrder(): PurchaseOrder {
   return {
     id: `PO-${Date.now()}`,
-    purchaseOrderNumber: generatePoNumber(),
+    voucherNumber: nextVoucherNumber(),
     orderDate: todayISO(),
     supplierId: "",
     purchaseType: "Cash Purchase",
-    expectedDeliveryDate: "",
+    billNumber: "",
+    billDate: "",
+    billDueDate: "",
+    lrNumber: "",
+    dispatchDate: "",
+    totalBoxes: 0,
+    godown: "",
     paymentMethod: "Cash",
     paymentTerms: "Immediate",
     deliveryAddress: "",
@@ -197,8 +250,9 @@ export default function OrdersNewPage() {
   const toastTimeoutRef = useRef<number | null>(null);
 
   const [products, setProducts] = useState<ProductRecord[]>([]);
-  const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [transporters, setTransporters] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<Party[]>([]);
+  const [supplierSearch, setSupplierSearch] = useState("");
+  const [transporters, setTransporters] = useState<TransportRecord[]>([]);
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder>(emptyOrder());
   const [showSelector, setShowSelector] = useState(false);
   const [selectorQuery, setSelectorQuery] = useState("");
@@ -214,12 +268,9 @@ export default function OrdersNewPage() {
 
   useEffect(() => {
     const allProducts = mockService.get<any>("products").map(normalizeProduct);
-    const allSuppliers = mockService.get<any>("suppliers");
-    const allTransporters = mockService.get<any>("transport");
-
     setProducts(allProducts);
-    setSuppliers(allSuppliers.length ? allSuppliers : [{ id: 1, name: "Cipla Ltd." }, { id: 2, name: "Sun Pharma" }]);
-    setTransporters(allTransporters.length ? allTransporters : [{ id: 1, name: "Shree Logistics" }, { id: 2, name: "Express Pharma Transport" }]);
+    setSuppliers(partyService.list().filter((party) => party.customerType === "Retailer" && party.active));
+    setTransporters(transportData.records as TransportRecord[]);
   }, []);
 
   useEffect(() => () => {
@@ -235,26 +286,27 @@ export default function OrdersNewPage() {
   };
 
   const summary = useMemo(() => {
-    const items = purchaseOrder.items.map((item) => ({
+    const calculationItems = purchaseOrder.items.map((item) => editingDraft?.id === item.id ? editingDraft : item);
+    const items = calculationItems.map((item) => ({
       ...item,
       ...calculatePurchaseItemAmount(item),
     }));
 
     return {
       totalItems: purchaseOrder.items.length,
-      totalQuantity: purchaseOrder.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
-      freeQuantity: purchaseOrder.items.reduce((sum, item) => sum + Number(item.freeQuantity || 0), 0),
+      totalQuantity: calculationItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+      freeQuantity: calculationItems.reduce((sum, item) => sum + Number(item.freeQuantity || 0), 0),
       ...calculatePurchaseOrderSummary(
-        purchaseOrder.items.map((item) => ({
+        calculationItems.map((item) => ({
           quantity: Number(item.quantity || 0),
-          purchaseRate: Number(item.purchaseRate || 0),
-          discount: Number(item.discount || 0),
+          sellRate: Number(item.sellRate || 0),
+          discountPercentage: Number(item.discountPercentage || 0),
           gst: Number(item.gst || 0),
         })),
       ),
       lineItems: items,
     };
-  }, [purchaseOrder.items]);
+  }, [editingDraft, purchaseOrder.items]);
 
   const filteredProducts = useMemo(() => {
     const query = selectorQuery.trim();
@@ -265,7 +317,12 @@ export default function OrdersNewPage() {
     });
   }, [products, purchaseOrder.items, selectorQuery]);
 
-  const updateHeaderField = (field: keyof PurchaseOrder, value: string) => {
+  const filteredSuppliers = useMemo(() => {
+    const query = supplierSearch.trim().toLowerCase();
+    return suppliers.filter((supplier) => [supplier.firmName, supplier.ownerName, supplier.phone, supplier.city].join(" ").toLowerCase().includes(query));
+  }, [supplierSearch, suppliers]);
+
+  const updateHeaderField = (field: keyof PurchaseOrder, value: string | number) => {
     setPurchaseOrder((current) => ({ ...current, [field]: value }));
     setHeaderErrors((current) => ({ ...current, [field]: "" }));
   };
@@ -344,14 +401,15 @@ export default function OrdersNewPage() {
     const nextErrors: FormErrors = {};
 
     if (!editingDraft.batchNumber?.trim()) nextErrors.batchNumber = "Batch number is required.";
+    if (!editingDraft.hsn?.trim()) nextErrors.hsn = "HSN is required from Product Master.";
     if (!editingDraft.expiryDate) nextErrors.expiryDate = "Expiry date is required.";
-    if (!editingDraft.quantity || Number(editingDraft.quantity) <= 0) nextErrors.quantity = "Quantity must be greater than 0.";
+    if (!Number.isFinite(Number(editingDraft.quantity)) || Number(editingDraft.quantity) < 0) nextErrors.quantity = "Quantity must be zero or greater.";
     if (Number(editingDraft.freeQuantity) < 0) nextErrors.freeQuantity = "Free quantity cannot be negative.";
     if (!editingDraft.unit?.trim()) nextErrors.unit = "Unit is required.";
-    if (Number(editingDraft.purchaseRate) < 0) nextErrors.purchaseRate = "Purchase rate cannot be negative.";
+    if (!Number.isFinite(Number(editingDraft.sellRate)) || Number(editingDraft.sellRate) < 0) nextErrors.sellRate = "Sell rate is required and cannot be negative.";
     if (Number(editingDraft.mrp) < 0) nextErrors.mrp = "MRP cannot be negative.";
     if (Number(editingDraft.gst) < 0) nextErrors.gst = "GST cannot be negative.";
-    if (Number(editingDraft.discount) < 0) nextErrors.discount = "Discount cannot be negative.";
+    if (Number(editingDraft.discountPercentage) < 0 || Number(editingDraft.discountPercentage) > 100) nextErrors.discountPercentage = "Discount must be between 0 and 100%.";
 
     if (editingDraft.manufactureDate && editingDraft.expiryDate) {
       const manufactureDate = new Date(`${editingDraft.manufactureDate}T00:00:00`);
@@ -401,17 +459,33 @@ export default function OrdersNewPage() {
 
   const validateHeader = () => {
     const errors: FormErrors = {};
-    if (!purchaseOrder.purchaseOrderNumber.trim()) errors.purchaseOrderNumber = "Purchase order number is required.";
+    const existingOrders = mockService.get<any>("purchaseOrders");
+    if (!Number.isInteger(Number(purchaseOrder.voucherNumber)) || Number(purchaseOrder.voucherNumber) <= 0) errors.voucherNumber = "Voucher number is required.";
+    if (existingOrders.some((order) => storedVoucherNumber(order) === Number(purchaseOrder.voucherNumber))) errors.voucherNumber = "Voucher number must be unique.";
     if (!purchaseOrder.orderDate) errors.orderDate = "Order date is required.";
+    if (purchaseOrder.orderDate && purchaseOrder.orderDate > todayISO()) errors.orderDate = "Order date cannot be in the future.";
     if (!String(purchaseOrder.supplierId).trim()) errors.supplierId = "Supplier is required.";
+    if (!purchaseOrder.purchaseType) errors.purchaseType = "Purchase type is required.";
+    if (!purchaseOrder.billNumber.trim()) errors.billNumber = "Bill number is required.";
+    if (!purchaseOrder.billDate) errors.billDate = "Bill date is required.";
+    if (purchaseOrder.billDate && purchaseOrder.billDate > todayISO()) errors.billDate = "Bill date cannot be in the future.";
+    if (!purchaseOrder.billDueDate) errors.billDueDate = "Bill due date is required.";
+    if (purchaseOrder.billDate && purchaseOrder.billDueDate && purchaseOrder.billDueDate <= purchaseOrder.billDate) errors.billDueDate = "Bill Due Date must be after Bill Date.";
+    if (!purchaseOrder.lrNumber.trim()) errors.lrNumber = "LR number is required.";
+    if (!purchaseOrder.dispatchDate) errors.dispatchDate = "Dispatch date is required.";
+    if (purchaseOrder.dispatchDate && purchaseOrder.dispatchDate > todayISO()) errors.dispatchDate = "Dispatch date cannot be in the future.";
+    if (!Number.isFinite(Number(purchaseOrder.totalBoxes)) || Number(purchaseOrder.totalBoxes) < 0) errors.totalBoxes = "Total boxes cannot be negative.";
     if (purchaseOrder.items.length === 0) errors.items = "At least one product is required.";
 
     purchaseOrder.items.forEach((item, index) => {
+      if (!item.hsn?.trim()) errors[`item-${index}-hsn`] = "HSN is required from Product Master.";
       if (!item.batchNumber?.trim()) errors[`item-${index}-batchNumber`] = "Batch number is required.";
       if (!item.expiryDate) errors[`item-${index}-expiryDate`] = "Expiry date is required.";
-      if (!item.quantity || Number(item.quantity) <= 0) errors[`item-${index}-quantity`] = "Quantity must be greater than 0.";
+      if (!Number.isFinite(Number(item.quantity)) || Number(item.quantity) < 0) errors[`item-${index}-quantity`] = "Quantity must be zero or greater.";
       if (!item.unit?.trim()) errors[`item-${index}-unit`] = "Unit is required.";
-      if (Number(item.purchaseRate) < 0) errors[`item-${index}-purchaseRate`] = "Purchase rate cannot be negative.";
+      if (!Number.isFinite(Number(item.sellRate)) || Number(item.sellRate) < 0) errors[`item-${index}-sellRate`] = "Sell rate is required and cannot be negative.";
+      if (Number(item.freeQuantity) < 0) errors[`item-${index}-freeQuantity`] = "Free quantity cannot be negative.";
+      if (Number(item.discountPercentage) < 0 || Number(item.discountPercentage) > 100) errors[`item-${index}-discountPercentage`] = "Discount must be between 0 and 100%.";
     });
 
     return errors;
@@ -431,10 +505,13 @@ export default function OrdersNewPage() {
     const payload = {
       ...purchaseOrder,
       status,
-      items: purchaseOrder.items.map((item) => ({
-        ...item,
-        amount: calculatePurchaseItemAmount(item).amount,
-      })),
+      items: purchaseOrder.items.map((item) => {
+        const itemToSave = editingDraft?.id === item.id ? editingDraft : item;
+        return {
+          ...itemToSave,
+          amount: calculatePurchaseItemAmount(itemToSave).amount,
+        };
+      }),
       subtotal: summary.subtotal,
       discount: summary.discount,
       taxableAmount: summary.taxableAmount,
@@ -480,67 +557,126 @@ export default function OrdersNewPage() {
               <span className="d-inline-flex align-items-center justify-content-center rounded-2 bg-primary-subtle text-primary" style={{ width: 38, height: 38 }}>
                 <i className="bi bi-bag-check" aria-hidden="true" />
               </span>
-              <h2 className="h5 mb-0">Purchase Order Header</h2>
+              <h2 className="h5 mb-0">Order Details</h2>
             </div>
 
             <div className="row g-3">
               <div className="col-md-6 col-xl-3">
-                <label className="form-label">Purchase Order Number <span className="text-danger">*</span></label>
+                <label className="form-label">Voucher Number <span className="text-danger">*</span></label>
                 <input
-                  className={`form-control ${headerErrors.purchaseOrderNumber ? "is-invalid" : ""}`}
-                  value={purchaseOrder.purchaseOrderNumber}
-                  onChange={(event) => updateHeaderField("purchaseOrderNumber", event.target.value)}
+                  type="number"
+                  className={`form-control ${headerErrors.voucherNumber ? "is-invalid" : ""}`}
+                  value={purchaseOrder.voucherNumber}
+                  readOnly
                 />
-                {headerErrors.purchaseOrderNumber && <div className="invalid-feedback d-block">{headerErrors.purchaseOrderNumber}</div>}
+                {headerErrors.voucherNumber && <div className="invalid-feedback d-block">{headerErrors.voucherNumber}</div>}
               </div>
 
               <div className="col-md-6 col-xl-3">
                 <label className="form-label">Order Date <span className="text-danger">*</span></label>
                 <input
                   type="date"
+                  max={todayISO()}
                   className={`form-control ${headerErrors.orderDate ? "is-invalid" : ""}`}
                   value={purchaseOrder.orderDate}
                   onChange={(event) => updateHeaderField("orderDate", event.target.value)}
                 />
                 {headerErrors.orderDate && <div className="invalid-feedback d-block">{headerErrors.orderDate}</div>}
+                {purchaseOrder.orderDate && <div className="form-text">{formatLongDate(purchaseOrder.orderDate)}</div>}
               </div>
 
               <div className="col-md-6 col-xl-3">
                 <label className="form-label">Supplier <span className="text-danger">*</span></label>
-                <select
+                <input
+                  list="supplier-list"
                   className={`form-select ${headerErrors.supplierId ? "is-invalid" : ""}`}
-                  value={purchaseOrder.supplierId}
-                  onChange={(event) => updateHeaderField("supplierId", event.target.value)}
-                >
-                  <option value="">Select supplier</option>
-                  {suppliers.map((supplier) => (
-                    <option key={supplier.id} value={String(supplier.id)}>{supplier.name}</option>
+                  value={supplierSearch}
+                  onChange={(event) => {
+                    const selected = suppliers.find((supplier) => supplier.firmName === event.target.value);
+                    setSupplierSearch(event.target.value);
+                    updateHeaderField("supplierId", selected ? String(selected.id) : "");
+                  }}
+                  placeholder="Search supplier"
+                />
+                <datalist id="supplier-list">
+                  {filteredSuppliers.map((supplier) => <option key={supplier.id} value={supplier.firmName} />)}
+                </datalist>
+                <div className="list-group mt-2" style={{ maxHeight: 260, overflowY: "auto" }}>
+                  {filteredSuppliers.map((supplier) => (
+                    <button key={supplier.id} type="button" className={`list-group-item list-group-item-action small ${String(purchaseOrder.supplierId) === String(supplier.id) ? "active" : ""}`} onClick={() => {
+                      setSupplierSearch(supplier.firmName);
+                      updateHeaderField("supplierId", String(supplier.id));
+                    }}>
+                      <span className="fw-semibold">{supplier.firmName}</span><span className="text-muted">{supplier.city ? ` · ${supplier.city}` : ""}</span>
+                    </button>
                   ))}
-                </select>
+                  {!filteredSuppliers.length && <div className="list-group-item small text-muted">No Supplier records found in Party Master.</div>}
+                </div>
                 {headerErrors.supplierId && <div className="invalid-feedback d-block">{headerErrors.supplierId}</div>}
               </div>
 
               <div className="col-md-6 col-xl-3">
-                <label className="form-label">Purchase Type</label>
+                <label className="form-label">Purchase Type <span className="text-danger">*</span></label>
                 <select
-                  className="form-select"
+                  className={`form-select ${headerErrors.purchaseType ? "is-invalid" : ""}`}
                   value={purchaseOrder.purchaseType}
                   onChange={(event) => updateHeaderField("purchaseType", event.target.value)}
                 >
+                  <option value="">Select purchase type</option>
                   {purchaseTypes.map((option) => (
                     <option key={option} value={option}>{option}</option>
                   ))}
                 </select>
+                {headerErrors.purchaseType && <div className="invalid-feedback d-block">{headerErrors.purchaseType}</div>}
+              </div>
+
+              <div className="col-12 mt-4"><h3 className="h6 mb-0">Bill Details</h3></div>
+
+              <div className="col-md-6 col-xl-3">
+                <label className="form-label">Bill Number <span className="text-danger">*</span></label>
+                <input
+                  className={`form-control ${headerErrors.billNumber ? "is-invalid" : ""}`}
+                  value={purchaseOrder.billNumber}
+                  onChange={(event) => updateHeaderField("billNumber", event.target.value)}
+                />
+                {headerErrors.billNumber && <div className="invalid-feedback d-block">{headerErrors.billNumber}</div>}
               </div>
 
               <div className="col-md-6 col-xl-3">
-                <label className="form-label">Expected Delivery Date</label>
-                <input
-                  type="date"
-                  className="form-control"
-                  value={purchaseOrder.expectedDeliveryDate}
-                  onChange={(event) => updateHeaderField("expectedDeliveryDate", event.target.value)}
-                />
+                <label className="form-label">Bill Date <span className="text-danger">*</span></label>
+                <input type="date" max={todayISO()} className={`form-control ${headerErrors.billDate ? "is-invalid" : ""}`} value={purchaseOrder.billDate} onChange={(event) => updateHeaderField("billDate", event.target.value)} />
+                {headerErrors.billDate && <div className="invalid-feedback d-block">{headerErrors.billDate}</div>}
+              </div>
+
+              <div className="col-md-6 col-xl-3">
+                <label className="form-label">Bill Due Date <span className="text-danger">*</span></label>
+                <input type="date" min={tomorrowISO(purchaseOrder.billDate)} className={`form-control ${headerErrors.billDueDate ? "is-invalid" : ""}`} value={purchaseOrder.billDueDate} onChange={(event) => updateHeaderField("billDueDate", event.target.value)} />
+                {headerErrors.billDueDate && <div className="invalid-feedback d-block">{headerErrors.billDueDate}</div>}
+              </div>
+
+              <div className="col-12 mt-4"><h3 className="h6 mb-0">Dispatch / Transport Details</h3></div>
+
+              <div className="col-md-6 col-xl-3">
+                <label className="form-label">LR Number <span className="text-danger">*</span></label>
+                <input className={`form-control ${headerErrors.lrNumber ? "is-invalid" : ""}`} value={purchaseOrder.lrNumber} onChange={(event) => updateHeaderField("lrNumber", event.target.value)} placeholder="Lorry Receipt Number" />
+                {headerErrors.lrNumber && <div className="invalid-feedback d-block">{headerErrors.lrNumber}</div>}
+              </div>
+
+              <div className="col-md-6 col-xl-3">
+                <label className="form-label">Dispatch Date <span className="text-danger">*</span></label>
+                <input type="date" max={todayISO()} className={`form-control ${headerErrors.dispatchDate ? "is-invalid" : ""}`} value={purchaseOrder.dispatchDate} onChange={(event) => updateHeaderField("dispatchDate", event.target.value)} />
+                {headerErrors.dispatchDate && <div className="invalid-feedback d-block">{headerErrors.dispatchDate}</div>}
+              </div>
+
+              <div className="col-md-6 col-xl-3">
+                <label className="form-label">Total Boxes / Cases Received</label>
+                <input type="number" min="0" step="1" className={`form-control ${headerErrors.totalBoxes ? "is-invalid" : ""}`} value={purchaseOrder.totalBoxes} onChange={(event) => updateHeaderField("totalBoxes", Number(event.target.value || 0))} />
+                {headerErrors.totalBoxes && <div className="invalid-feedback d-block">{headerErrors.totalBoxes}</div>}
+              </div>
+
+              <div className="col-md-6 col-xl-3">
+                <label className="form-label">Godown</label>
+                <input className="form-control" value={purchaseOrder.godown} onChange={(event) => updateHeaderField("godown", event.target.value)} placeholder="Optional storage location" />
               </div>
 
               <div className="col-md-6 col-xl-3">
@@ -582,6 +718,8 @@ export default function OrdersNewPage() {
                   ))}
                 </select>
               </div>
+
+              <div className="col-12 mt-4"><h3 className="h6 mb-0">Additional Details</h3></div>
 
               <div className="col-12">
                 <label className="form-label">Delivery Address</label>
@@ -627,31 +765,44 @@ export default function OrdersNewPage() {
                 <table className="table table-hover align-middle mb-0">
                   <thead className="table-light">
                     <tr>
-                      <th>Product Name</th>
-                      <th>Manufacturer</th>
-                      <th>Qty</th>
-                      <th>Unit</th>
-                      <th>Purchase Rate</th>
-                      <th>MRP</th>
-                      <th>GST %</th>
-                      <th>Discount</th>
-                      <th>Amount</th>
-                      <th>Actions</th>
+                      <th rowSpan={2}>HSN</th>
+                      <th rowSpan={2}>Product</th>
+                      <th rowSpan={2}>Package Description</th>
+                      <th rowSpan={2}>Quantity</th>
+                      <th rowSpan={2}>Scheme</th>
+                      <th rowSpan={2}>Batch Number</th>
+                      <th rowSpan={2}>Expiry Date</th>
+                      <th rowSpan={2}>MRP</th>
+                      <th rowSpan={2}>Sale Rate</th>
+                      <th rowSpan={2}>Discount %</th>
+                      <th rowSpan={2}>Taxable</th>
+                      <th colSpan={2} className="text-center">GST %</th>
+                      <th rowSpan={2}>Amount</th>
+                      <th rowSpan={2}>Actions</th>
+                    </tr>
+                    <tr>
+                      <th>CGST %</th>
+                      <th>SGST %</th>
                     </tr>
                   </thead>
                   <tbody>
                     {purchaseOrder.items.map((item) => (
                       <Fragment key={String(item.id)}>
                         <tr>
+                          <td>{item.hsn || "—"}</td>
                           <td className="fw-semibold">{item.productName}</td>
-                          <td>{item.manufacturer || "—"}</td>
+                          <td>{item.packageDescription || "—"}</td>
                           <td>{item.quantity}</td>
-                          <td>{item.unit}</td>
-                          <td>{formatCurrency(item.purchaseRate)}</td>
+                          <td>{item.scheme || "No Scheme"}</td>
+                          <td>{item.batchNumber || "—"}</td>
+                          <td>{item.expiryDate || "—"}</td>
                           <td>{formatCurrency(item.mrp)}</td>
-                          <td>{item.gst}%</td>
-                          <td>{formatCurrency(item.discount)}</td>
-                          <td>{formatCurrency(item.amount)}</td>
+                          <td>{formatCurrency(item.sellRate)}</td>
+                          <td>{item.discountPercentage}%</td>
+                          <td>{formatCurrency(editingDraft?.id === item.id ? calculatePurchaseItemAmount(editingDraft).taxableAmount : calculatePurchaseItemAmount(item).taxableAmount)}</td>
+                          <td>{calculatePurchaseItemAmount(editingDraft?.id === item.id ? editingDraft : item).cgstPercentage}%</td>
+                          <td>{calculatePurchaseItemAmount(editingDraft?.id === item.id ? editingDraft : item).sgstPercentage}%</td>
+                          <td>{formatCurrency(editingDraft?.id === item.id ? calculatePurchaseItemAmount(editingDraft).amount : calculatePurchaseItemAmount(item).amount)}</td>
                           <td>
                             <div className="d-flex gap-2 flex-wrap">
                               <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => handleInlineEdit(item)}>Edit</button>
@@ -663,7 +814,7 @@ export default function OrdersNewPage() {
 
                         {expandedProductId === item.id && editingDraft && (
                           <tr>
-                            <td colSpan={10} className="p-0">
+                            <td colSpan={15} className="p-0">
                               <div className="p-3 bg-light-subtle border-top">
                                 <div className="d-flex justify-content-between align-items-center mb-3">
                                   <div className="fw-semibold">Product Details</div>
@@ -680,10 +831,14 @@ export default function OrdersNewPage() {
                                     <input className="form-control" value={editingDraft.manufacturer || ""} readOnly />
                                   </div>
                                   <div className="col-md-6 col-xl-4">
-                                    <label className="form-label">Scientific Name</label>
-                                    <input className="form-control" value={editingDraft.scientificName || ""} readOnly />
+                                    <label className="form-label">HSN</label>
+                                    <input className={`form-control ${rowErrors.hsn ? "is-invalid" : ""}`} value={editingDraft.hsn || ""} readOnly />
+                                    {rowErrors.hsn && <div className="invalid-feedback d-block">{rowErrors.hsn}</div>}
                                   </div>
-
+                                  <div className="col-md-6 col-xl-4">
+                                    <label className="form-label">Package Description</label>
+                                    <input className="form-control" value={editingDraft.packageDescription || ""} readOnly />
+                                  </div>
                                   <div className="col-md-6 col-xl-4">
                                     <label className="form-label">Batch Number <span className="text-danger">*</span></label>
                                     <input
@@ -717,7 +872,7 @@ export default function OrdersNewPage() {
                                     <label className="form-label">Quantity <span className="text-danger">*</span></label>
                                     <input
                                       type="number"
-                                      min="1"
+                                      min="0"
                                       className={`form-control ${rowErrors.quantity ? "is-invalid" : ""}`}
                                       value={editingDraft.quantity}
                                       onChange={(event) => setEditingDraft((current) => current ? { ...current, quantity: Number(event.target.value || 0) } : current)}
@@ -725,38 +880,26 @@ export default function OrdersNewPage() {
                                     {rowErrors.quantity && <div className="invalid-feedback d-block">{rowErrors.quantity}</div>}
                                   </div>
                                   <div className="col-md-6 col-xl-3">
-                                    <label className="form-label">Free Quantity</label>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      className={`form-control ${rowErrors.freeQuantity ? "is-invalid" : ""}`}
-                                      value={editingDraft.freeQuantity}
-                                      onChange={(event) => setEditingDraft((current) => current ? { ...current, freeQuantity: Number(event.target.value || 0) } : current)}
-                                    />
-                                    {rowErrors.freeQuantity && <div className="invalid-feedback d-block">{rowErrors.freeQuantity}</div>}
+                                    <label className="form-label">Scheme</label>
+                                    <select className="form-select" value={editingDraft.scheme} onChange={(event) => setEditingDraft((current) => current ? { ...current, scheme: event.target.value } : current)}>
+                                      {schemes.map((scheme) => <option key={scheme.id} value={scheme.name}>{scheme.name}</option>)}
+                                    </select>
                                   </div>
                                   <div className="col-md-6 col-xl-3">
                                     <label className="form-label">Unit <span className="text-danger">*</span></label>
                                     <input
                                       className={`form-control ${rowErrors.unit ? "is-invalid" : ""}`}
                                       value={editingDraft.unit}
+                                      readOnly={Boolean(editingDraft.unit)}
                                       onChange={(event) => setEditingDraft((current) => current ? { ...current, unit: event.target.value } : current)}
                                     />
                                     {rowErrors.unit && <div className="invalid-feedback d-block">{rowErrors.unit}</div>}
                                   </div>
                                   <div className="col-md-6 col-xl-3">
-                                    <label className="form-label">Purchase Rate <span className="text-danger">*</span></label>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      className={`form-control ${rowErrors.purchaseRate ? "is-invalid" : ""}`}
-                                      value={editingDraft.purchaseRate}
-                                      onChange={(event) => setEditingDraft((current) => current ? { ...current, purchaseRate: Number(event.target.value || 0) } : current)}
-                                    />
-                                    {rowErrors.purchaseRate && <div className="invalid-feedback d-block">{rowErrors.purchaseRate}</div>}
+                                    <label className="form-label">Sell Rate <span className="text-danger">*</span></label>
+                                    <input type="number" min="0" step="0.01" className={`form-control ${rowErrors.sellRate ? "is-invalid" : ""}`} value={editingDraft.sellRate} onChange={(event) => setEditingDraft((current) => current ? { ...current, sellRate: Number(event.target.value || 0) } : current)} />
+                                    {rowErrors.sellRate && <div className="invalid-feedback d-block">{rowErrors.sellRate}</div>}
                                   </div>
-
                                   <div className="col-md-6 col-xl-3">
                                     <label className="form-label">MRP</label>
                                     <input
@@ -770,48 +913,32 @@ export default function OrdersNewPage() {
                                     {rowErrors.mrp && <div className="invalid-feedback d-block">{rowErrors.mrp}</div>}
                                   </div>
                                   <div className="col-md-6 col-xl-3">
-                                    <label className="form-label">GST %</label>
+                                    <label className="form-label">Discount %</label>
                                     <input
                                       type="number"
                                       min="0"
+                                      max="100"
                                       step="0.01"
-                                      className={`form-control ${rowErrors.gst ? "is-invalid" : ""}`}
-                                      value={editingDraft.gst}
-                                      onChange={(event) => setEditingDraft((current) => current ? { ...current, gst: Number(event.target.value || 0) } : current)}
+                                      className={`form-control ${rowErrors.discountPercentage ? "is-invalid" : ""}`}
+                                      value={editingDraft.discountPercentage}
+                                      onChange={(event) => setEditingDraft((current) => current ? { ...current, discountPercentage: Number(event.target.value || 0) } : current)}
                                     />
-                                    {rowErrors.gst && <div className="invalid-feedback d-block">{rowErrors.gst}</div>}
+                                    {rowErrors.discountPercentage && <div className="invalid-feedback d-block">{rowErrors.discountPercentage}</div>}
                                   </div>
                                   <div className="col-md-6 col-xl-3">
-                                    <label className="form-label">Discount</label>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      className={`form-control ${rowErrors.discount ? "is-invalid" : ""}`}
-                                      value={editingDraft.discount}
-                                      onChange={(event) => setEditingDraft((current) => current ? { ...current, discount: Number(event.target.value || 0) } : current)}
-                                    />
-                                    {rowErrors.discount && <div className="invalid-feedback d-block">{rowErrors.discount}</div>}
+                                    <label className="form-label">Taxable</label>
+                                    <input className="form-control" value={formatCurrency(calculatePurchaseItemAmount(editingDraft).taxableAmount)} readOnly />
+                                  </div>
+                                  <div className="col-md-6 col-xl-3">
+                                    <label className="form-label">GST %</label>
+                                    <input type="number" min="0" step="0.01" className={`form-control ${rowErrors.gst ? "is-invalid" : ""}`} value={editingDraft.gst} onChange={(event) => setEditingDraft((current) => current ? { ...current, gst: Number(event.target.value || 0) } : current)} />
+                                    {rowErrors.gst && <div className="invalid-feedback d-block">{rowErrors.gst}</div>}
                                   </div>
                                   <div className="col-md-6 col-xl-3">
                                     <label className="form-label">Amount</label>
                                     <input className="form-control" value={formatCurrency(calculatePurchaseItemAmount(editingDraft).amount)} readOnly />
                                   </div>
 
-                                  <div className="col-md-6 col-xl-3 d-flex align-items-end">
-                                    <div className="form-check mb-3">
-                                      <input
-                                        className="form-check-input"
-                                        type="checkbox"
-                                        checked={editingDraft.holdSale}
-                                        onChange={(event) => setEditingDraft((current) => current ? { ...current, holdSale: event.target.checked } : current)}
-                                        id={`hold-sale-${item.id}`}
-                                      />
-                                      <label className="form-check-label" htmlFor={`hold-sale-${item.id}`}>
-                                        Hold Sale
-                                      </label>
-                                    </div>
-                                  </div>
                                 </div>
 
                                 <div className="d-flex justify-content-end gap-2 mt-4">
@@ -837,14 +964,14 @@ export default function OrdersNewPage() {
 
         <div className="card border-0 shadow-sm rounded-4 mb-4">
           <div className="card-body p-3 p-lg-4">
+            <h2 className="h5 mb-4">Order Summary</h2>
             <div className="row g-3">
               <div className="col-md-6 col-xl-3"><div className="small text-muted">Total Items</div><div className="fs-5 fw-semibold">{summary.totalItems}</div></div>
               <div className="col-md-6 col-xl-3"><div className="small text-muted">Total Quantity</div><div className="fs-5 fw-semibold">{summary.totalQuantity}</div></div>
-              <div className="col-md-6 col-xl-3"><div className="small text-muted">Free Quantity</div><div className="fs-5 fw-semibold">{summary.freeQuantity}</div></div>
               <div className="col-md-6 col-xl-3"><div className="small text-muted">Grand Total</div><div className="fs-5 fw-semibold text-primary">{formatCurrency(summary.grandTotal)}</div></div>
             </div>
             <div className="row g-3 mt-1">
-              <div className="col-md-6 col-xl-4"><div className="small text-muted">Subtotal</div><div className="fw-semibold">{formatCurrency(summary.subtotal)}</div></div>
+              <div className="col-md-6 col-xl-4"><div className="small text-muted">Gross Amount</div><div className="fw-semibold">{formatCurrency(summary.subtotal)}</div></div>
               <div className="col-md-6 col-xl-4"><div className="small text-muted">Discount</div><div className="fw-semibold">{formatCurrency(summary.discount)}</div></div>
               <div className="col-md-6 col-xl-4"><div className="small text-muted">Taxable Amount</div><div className="fw-semibold">{formatCurrency(summary.taxableAmount)}</div></div>
               <div className="col-md-6 col-xl-3"><div className="small text-muted">CGST</div><div className="fw-semibold">{formatCurrency(summary.cgst)}</div></div>
@@ -861,7 +988,7 @@ export default function OrdersNewPage() {
             {isSaving ? "Saving..." : "Save as Draft"}
           </button>
           <button type="button" className="btn btn-primary" onClick={() => handleSavePurchaseOrder("Completed")} disabled={isSaving}>
-            {isSaving ? "Saving..." : "Save Purchase Order"}
+                {isSaving ? "Saving..." : "Complete Purchase Order"}
           </button>
         </div>
       </div>
@@ -902,7 +1029,7 @@ export default function OrdersNewPage() {
                         <div>
                           <div className="fw-semibold">{productName}</div>
                           <div className="small text-secondary">
-                            {product.manufacturer || product.brand || "Unknown Manufacturer"} | {product.unit || "Strip"} | MRP {formatCurrency(product.mrp ?? 0)} | GST {product.gst ?? product.gstPercentage ?? 12}%
+                            {product.manufacturer || product.brand || ""} | {product.unit || product.unitType || ""} | MRP {formatCurrency(product.mrp ?? 0)} | GST {product.gst ?? product.gstPercentage ?? 0}%
                           </div>
                         </div>
                       </label>
@@ -934,19 +1061,17 @@ export default function OrdersNewPage() {
                 <div className="row g-3">
                   <div className="col-md-6"><div className="small text-muted">Product Name</div><div className="fw-semibold">{viewProduct.productName}</div></div>
                   <div className="col-md-6"><div className="small text-muted">Manufacturer</div><div className="fw-semibold">{viewProduct.manufacturer || "—"}</div></div>
-                  <div className="col-md-6"><div className="small text-muted">Scientific Name</div><div className="fw-semibold">{viewProduct.scientificName || "—"}</div></div>
+                  <div className="col-md-6"><div className="small text-muted">HSN</div><div className="fw-semibold">{viewProduct.hsn || "—"}</div></div>
                   <div className="col-md-6"><div className="small text-muted">Batch Number</div><div className="fw-semibold">{viewProduct.batchNumber || "—"}</div></div>
                   <div className="col-md-6"><div className="small text-muted">Manufacture Date</div><div className="fw-semibold">{viewProduct.manufactureDate || "—"}</div></div>
                   <div className="col-md-6"><div className="small text-muted">Expiry Date</div><div className="fw-semibold">{viewProduct.expiryDate || "—"}</div></div>
                   <div className="col-md-6"><div className="small text-muted">Quantity</div><div className="fw-semibold">{viewProduct.quantity}</div></div>
-                  <div className="col-md-6"><div className="small text-muted">Free Quantity</div><div className="fw-semibold">{viewProduct.freeQuantity}</div></div>
                   <div className="col-md-6"><div className="small text-muted">Unit</div><div className="fw-semibold">{viewProduct.unit}</div></div>
-                  <div className="col-md-6"><div className="small text-muted">Purchase Rate</div><div className="fw-semibold">{formatCurrency(viewProduct.purchaseRate)}</div></div>
+                  <div className="col-md-6"><div className="small text-muted">Sell Rate</div><div className="fw-semibold">{formatCurrency(viewProduct.sellRate)}</div></div>
                   <div className="col-md-6"><div className="small text-muted">MRP</div><div className="fw-semibold">{formatCurrency(viewProduct.mrp)}</div></div>
                   <div className="col-md-6"><div className="small text-muted">GST</div><div className="fw-semibold">{viewProduct.gst}%</div></div>
-                  <div className="col-md-6"><div className="small text-muted">Discount</div><div className="fw-semibold">{formatCurrency(viewProduct.discount)}</div></div>
+                  <div className="col-md-6"><div className="small text-muted">Discount %</div><div className="fw-semibold">{viewProduct.discountPercentage}%</div></div>
                   <div className="col-md-6"><div className="small text-muted">Amount</div><div className="fw-semibold">{formatCurrency(viewProduct.amount)}</div></div>
-                  <div className="col-md-6"><div className="small text-muted">Hold Sale</div><div className="fw-semibold">{viewProduct.holdSale ? "Yes" : "No"}</div></div>
                 </div>
               </div>
               <div className="modal-footer">

@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { mockService } from "@/lib/mock-service";
+import { partyService } from "@/lib/party-service";
 
-type StatusFilter = "All" | "Pending" | "Shipped" | "Delivered" | "Cancelled";
+type StatusFilter = "All" | string;
 type DatePreset = "All" | "Today" | "Last 7 Days" | "Last 30 Days" | "This Month" | "Custom Range";
-type SortKey = "latest" | "amount-desc" | "amount-asc" | "customer" | "status";
+type SortKey = "latest" | "amount-desc" | "amount-asc" | "supplier" | "status";
 
 const statusClasses: Record<string, string> = {
   Delivered: "badge bg-success-subtle text-success",
@@ -15,7 +16,7 @@ const statusClasses: Record<string, string> = {
   Cancelled: "badge bg-danger-subtle text-danger",
 };
 
-const STATUS_OPTIONS: StatusFilter[] = ["All", "Pending", "Shipped", "Delivered", "Cancelled"];
+const STATUS_OPTIONS: StatusFilter[] = ["All", "Draft", "Completed", "Pending", "Received", "Cancelled"];
 const PAYMENT_OPTIONS = ["All", "Cash", "UPI", "Card", "Bank", "NEFT"];
 const DATE_OPTIONS: DatePreset[] = ["All", "Today", "Last 7 Days", "Last 30 Days", "This Month", "Custom Range"];
 
@@ -81,7 +82,7 @@ export default function OrdersPage() {
   const [datePreset, setDatePreset] = useState<DatePreset>("All");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
-  const [customerFilter, setCustomerFilter] = useState("All");
+  const [supplierFilter, setSupplierFilter] = useState("All");
   const [paymentFilter, setPaymentFilter] = useState("All");
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
@@ -95,17 +96,25 @@ export default function OrdersPage() {
 
   const allOrders = useMemo(
     () =>
-      mockService.get<any>("salesOrders").map((order, index) => ({
-        ...order,
-        mobile: order.mobile ?? `9${(7860000000 + index * 13579).toString().slice(0, 10)}`,
-        billNo: order.billNo ?? `BILL-${String(1000 + index).padStart(5, "0")}`,
-        paymentMethod: order.paymentMethod ?? ["UPI", "Cash", "Bank", "Card", "NEFT"][index % 5],
-      })),
+      mockService.get<any>("purchaseOrders").map((order, index) => {
+        const supplier = partyService.list().find((party) => String(party.id) === String(order.supplierId));
+        return {
+          ...order,
+          voucher: order.voucherNumber ?? order.purchaseOrderNumber ?? order.id,
+          date: order.orderDate ?? order.date ?? "",
+          supplier: supplier?.firmName ?? order.party ?? "-",
+          mobile: supplier?.phone ?? order.mobile ?? "-",
+          billNo: order.billNumber ?? order.billNo ?? "-",
+          items: Array.isArray(order.items) ? order.items.length : Number(order.items || 0),
+          amount: order.grandTotal ?? order.amount ?? 0,
+          paymentMethod: order.paymentMethod ?? ["UPI", "Cash", "Bank", "Card", "NEFT"][index % 5],
+        };
+      }),
     [refreshKey],
   );
 
   const customerOptions = useMemo(
-    () => ["All", ...Array.from(new Set(allOrders.map((order) => order.party)))],
+    () => ["All", ...Array.from(new Set(allOrders.map((order) => order.supplier)))],
     [allOrders],
   );
 
@@ -122,23 +131,23 @@ export default function OrdersPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [globalSearch, statusFilter, datePreset, customFrom, customTo, customerFilter, paymentFilter, minAmount, maxAmount, sortBy, pageSize]);
+  }, [globalSearch, statusFilter, datePreset, customFrom, customTo, supplierFilter, paymentFilter, minAmount, maxAmount, sortBy, pageSize]);
 
   const filteredOrders = useMemo(() => {
     const search = globalSearch.trim().toLowerCase();
 
     const filtered = allOrders.filter((order) => {
-      const orderSearchValue = [order.id, order.party, order.mobile, order.billNo].join(" ").toLowerCase();
+      const orderSearchValue = [order.voucher, order.supplier, order.mobile, order.billNo].join(" ").toLowerCase();
       const matchesGlobalSearch = !search || orderSearchValue.includes(search);
       const matchesStatus = statusFilter === "All" || order.status === statusFilter;
-      const matchesCustomer = customerFilter === "All" || order.party === customerFilter;
+      const matchesSupplier = supplierFilter === "All" || order.supplier === supplierFilter;
       const matchesPayment = paymentFilter === "All" || order.paymentMethod === paymentFilter;
       const matchesDate = matchesDateRange(order.date, datePreset, customFrom, customTo);
       const amount = Number(order.amount || 0);
       const matchesMin = minAmount === "" || amount >= Number(minAmount || 0);
       const matchesMax = maxAmount === "" || amount <= Number(maxAmount || Number.MAX_SAFE_INTEGER);
 
-      return matchesGlobalSearch && matchesStatus && matchesCustomer && matchesPayment && matchesDate && matchesMin && matchesMax;
+      return matchesGlobalSearch && matchesStatus && matchesSupplier && matchesPayment && matchesDate && matchesMin && matchesMax;
     });
 
     filtered.sort((a, b) => {
@@ -147,8 +156,8 @@ export default function OrdersPage() {
           return Number(b.amount) - Number(a.amount);
         case "amount-asc":
           return Number(a.amount) - Number(b.amount);
-        case "customer":
-          return String(a.party).localeCompare(String(b.party)) || String(a.id).localeCompare(String(b.id));
+        case "supplier":
+          return String(a.supplier).localeCompare(String(b.supplier)) || String(a.voucher).localeCompare(String(b.voucher));
         case "status":
           return String(a.status).localeCompare(String(b.status)) || String(b.date).localeCompare(String(a.date));
         case "latest":
@@ -158,7 +167,7 @@ export default function OrdersPage() {
     });
 
     return filtered;
-  }, [allOrders, globalSearch, statusFilter, customerFilter, paymentFilter, datePreset, customFrom, customTo, minAmount, maxAmount, sortBy]);
+  }, [allOrders, globalSearch, statusFilter, supplierFilter, paymentFilter, datePreset, customFrom, customTo, minAmount, maxAmount, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
   const visibleOrders = useMemo(() => {
@@ -176,7 +185,7 @@ export default function OrdersPage() {
     globalSearch ? { key: "search", label: `Search: ${globalSearch}` } : null,
     statusFilter !== "All" ? { key: "status", label: `Status: ${statusFilter}` } : null,
     datePreset !== "All" ? { key: "date", label: `Date: ${datePreset}` } : null,
-    customerFilter !== "All" ? { key: "customer", label: `Customer: ${customerFilter}` } : null,
+    supplierFilter !== "All" ? { key: "supplier", label: `Supplier: ${supplierFilter}` } : null,
     paymentFilter !== "All" ? { key: "payment", label: `Payment: ${paymentFilter}` } : null,
     minAmount || maxAmount ? { key: "amount", label: `Amount: ${minAmount || "0"} - ${maxAmount || "∞"}` } : null,
   ].filter(Boolean) as Array<{ key: string; label: string }>;
@@ -187,7 +196,7 @@ export default function OrdersPage() {
     setDatePreset("All");
     setCustomFrom("");
     setCustomTo("");
-    setCustomerFilter("All");
+    setSupplierFilter("All");
     setPaymentFilter("All");
     setMinAmount("");
     setMaxAmount("");
@@ -196,11 +205,11 @@ export default function OrdersPage() {
   };
 
   const handleDeleteOrder = (order: any) => {
-    if (!window.confirm(`Delete order ${order.id} for ${order.party}?`)) {
+    if (!window.confirm(`Delete purchase order ${order.voucher} for ${order.supplier}?`)) {
       return;
     }
 
-    mockService.remove("salesOrders", order.id);
+    mockService.remove("purchaseOrders", order.id);
     setRefreshKey((value) => value + 1);
     setPage(1);
   };
@@ -208,7 +217,7 @@ export default function OrdersPage() {
   const handleSaveEdit = () => {
     if (!editOrder) return;
 
-    mockService.update("salesOrders", editOrder.id, { status: editStatus });
+    mockService.update("purchaseOrders", editOrder.id, { status: editStatus });
     setEditOrder(null);
     setRefreshKey((value) => value + 1);
   };
@@ -267,7 +276,7 @@ export default function OrdersPage() {
                     className="form-control"
                     value={globalSearch}
                     onChange={(event) => setGlobalSearch(event.target.value)}
-                    placeholder="Order No, Customer, Mobile, Bill No"
+                    placeholder="Voucher No, Supplier, Mobile, Bill Number"
                   />
                 </div>
               </div>
@@ -291,15 +300,15 @@ export default function OrdersPage() {
               </div>
 
               <div className="col-12 col-md-6 col-xl-2">
-                <label className="form-label">Customer</label>
+                <label className="form-label">Supplier</label>
                 <input
-                  list="customerList"
+                  list="supplierList"
                   className="form-control"
-                  value={customerFilter === "All" ? "" : customerFilter}
-                  onChange={(event) => setCustomerFilter(event.target.value || "All")}
-                  placeholder="Search customer"
+                  value={supplierFilter === "All" ? "" : supplierFilter}
+                  onChange={(event) => setSupplierFilter(event.target.value || "All")}
+                  placeholder="Search supplier"
                 />
-                <datalist id="customerList">
+                <datalist id="supplierList">
                   {customerOptions.filter((option) => option !== "All").map((option) => (
                     <option key={option} value={option} />
                   ))}
@@ -331,7 +340,7 @@ export default function OrdersPage() {
                   <option value="latest">Latest Order</option>
                   <option value="amount-desc">Amount: High to Low</option>
                   <option value="amount-asc">Amount: Low to High</option>
-                  <option value="customer">Customer</option>
+                  <option value="supplier">Supplier</option>
                   <option value="status">Status</option>
                 </select>
               </div>
@@ -361,7 +370,7 @@ export default function OrdersPage() {
                       if (chip.key === "search") setGlobalSearch("");
                       if (chip.key === "status") setStatusFilter("All");
                       if (chip.key === "date") { setDatePreset("All"); setCustomFrom(""); setCustomTo(""); }
-                      if (chip.key === "customer") setCustomerFilter("All");
+                      if (chip.key === "supplier") setSupplierFilter("All");
                       if (chip.key === "payment") setPaymentFilter("All");
                       if (chip.key === "amount") { setMinAmount(""); setMaxAmount(""); }
                     }}
@@ -393,11 +402,11 @@ export default function OrdersPage() {
             <table className="table table-hover align-middle mb-0">
               <thead className="table-light">
                 <tr>
-                  <th scope="col">Order No</th>
+                  <th scope="col">Voucher No</th>
                   <th scope="col">Date</th>
-                  <th scope="col">Customer</th>
+                  <th scope="col">Supplier</th>
                   <th scope="col">Mobile</th>
-                  <th scope="col">Bill No</th>
+                  <th scope="col">Bill Number</th>
                   <th scope="col">Payment</th>
                   <th scope="col">Items</th>
                   <th scope="col">Amount</th>
@@ -409,9 +418,9 @@ export default function OrdersPage() {
                 {visibleOrders.length > 0 ? (
                   visibleOrders.map((order) => (
                     <tr key={order.id}>
-                      <td className="fw-semibold">{order.id}</td>
+                      <td className="fw-semibold">{order.voucher}</td>
                       <td>{order.date}</td>
-                      <td>{order.party}</td>
+                      <td>{order.supplier}</td>
                       <td>{order.mobile}</td>
                       <td>{order.billNo}</td>
                       <td>{order.paymentMethod}</td>
@@ -420,16 +429,16 @@ export default function OrdersPage() {
                       <td><span className={statusClasses[order.status] || "badge bg-secondary-subtle text-secondary"}>{order.status}</span></td>
                       <td>
                         <div className="d-flex gap-2">
-                          <button type="button" className="btn btn-sm btn-light" aria-label={`View ${order.id}`} onClick={() => setViewOrder(order)}>
+                          <button type="button" className="btn btn-sm btn-light" aria-label={`View ${order.voucher}`} onClick={() => setViewOrder(order)}>
                             <i className="bi bi-eye" aria-hidden="true" />
                           </button>
-                          <button type="button" className="btn btn-sm btn-light" aria-label={`Edit ${order.id}`} onClick={() => {
+                          <button type="button" className="btn btn-sm btn-light" aria-label={`Edit ${order.voucher}`} onClick={() => {
                             setEditOrder(order);
                             setEditStatus(order.status as StatusFilter);
                           }}>
                             <i className="bi bi-pencil" aria-hidden="true" />
                           </button>
-                          <button type="button" className="btn btn-sm btn-light text-danger" aria-label={`Delete ${order.id}`} onClick={() => handleDeleteOrder(order)}>
+                          <button type="button" className="btn btn-sm btn-light text-danger" aria-label={`Delete ${order.voucher}`} onClick={() => handleDeleteOrder(order)}>
                             <i className="bi bi-trash3" aria-hidden="true" />
                           </button>
                         </div>
@@ -480,11 +489,11 @@ export default function OrdersPage() {
               </div>
               <div className="modal-body">
                 <div className="row g-3">
-                  <div className="col-md-6"><strong>Order No:</strong> {viewOrder.id}</div>
+                  <div className="col-md-6"><strong>Voucher No:</strong> {viewOrder.voucher}</div>
                   <div className="col-md-6"><strong>Date:</strong> {viewOrder.date}</div>
-                  <div className="col-md-6"><strong>Customer:</strong> {viewOrder.party}</div>
+                  <div className="col-md-6"><strong>Supplier:</strong> {viewOrder.supplier}</div>
                   <div className="col-md-6"><strong>Mobile:</strong> {viewOrder.mobile}</div>
-                  <div className="col-md-6"><strong>Bill No:</strong> {viewOrder.billNo}</div>
+                  <div className="col-md-6"><strong>Bill Number:</strong> {viewOrder.billNo}</div>
                   <div className="col-md-6"><strong>Payment:</strong> {viewOrder.paymentMethod}</div>
                   <div className="col-md-6"><strong>Items:</strong> {viewOrder.items}</div>
                   <div className="col-md-6"><strong>Amount:</strong> {formatInr(Number(viewOrder.amount || 0))}</div>
@@ -513,8 +522,8 @@ export default function OrdersPage() {
                   <input className="form-control" value={editOrder.id} disabled />
                 </div>
                 <div className="mb-3">
-                  <label className="form-label">Customer</label>
-                  <input className="form-control" value={editOrder.party} disabled />
+                  <label className="form-label">Supplier</label>
+                  <input className="form-control" value={editOrder.supplier} disabled />
                 </div>
                 <div className="mb-3">
                   <label className="form-label">Status</label>
