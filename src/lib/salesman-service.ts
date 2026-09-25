@@ -1,7 +1,11 @@
 import { mockService } from "@/lib/mock-service";
+import salesmanData from "@/data/salesman.json";
 import type { Salesman } from "@/types/salesman";
 
 const COLLECTION = "salesmen";
+const SOURCE_META = "salesmenSourceMeta";
+const seedSalesmen = salesmanData as Array<Partial<Salesman> & { id: number }>;
+const sourceSignature = JSON.stringify(seedSalesmen);
 
 function normalize(record: Partial<Salesman> & { id: number }): Salesman {
   return {
@@ -16,7 +20,14 @@ function normalize(record: Partial<Salesman> & { id: number }): Salesman {
 
 export const salesmanService = {
   list(): Salesman[] {
-    return mockService.get<Salesman>(COLLECTION).map(normalize);
+    if (typeof window !== "undefined") {
+      const sourceMeta = mockService.get<{ id: string; sourceSignature: string }>(SOURCE_META)[0];
+      if (sourceMeta?.sourceSignature !== sourceSignature) {
+        mockService.replace(COLLECTION, seedSalesmen as Salesman[]);
+        mockService.replace(SOURCE_META, [{ id: "source", sourceSignature }]);
+      }
+    }
+    return mockService.getOrSeed<Salesman>(COLLECTION, seedSalesmen as Salesman[]).map(normalize);
   },
   active(): Salesman[] {
     return this.list().filter((salesman) => salesman.isActive);
