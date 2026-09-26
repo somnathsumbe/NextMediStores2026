@@ -3,13 +3,12 @@
 import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { mockService } from "@/lib/mock-service";
 import { calculatePTR } from "@/utils/product-pricing";
-import { hsnService } from "@/lib/hsn-service";
-import type { HsnRecord } from "@/types/hsn";
+import type { HsnMongoRecord } from "@/types/hsn";
 
 type ProductRecord = {
-  id: number;
+  _id?: string;
+  id: string;
   productName: string;
   batchNumber: string;
   mrp: number;
@@ -46,7 +45,34 @@ type ProductForm = {
 
 type FormErrors = Partial<Record<keyof ProductForm, string>>;
 
-const getProducts = () => mockService.get<ProductRecord>("products");
+async function fetchProducts(): Promise<ProductRecord[]> {
+  const response = await fetch("/api/products", { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("Unable to load products.");
+  }
+
+  const payload = await response.json();
+  const records = Array.isArray(payload?.records) ? payload.records : Array.isArray(payload) ? payload : [];
+  return records.map((record: Partial<ProductRecord> & { _id?: string | { toString(): string } }) => ({
+    _id: record._id ? String(record._id) : undefined,
+    id: String(record.id ?? record._id ?? Date.now()),
+    productName: record.productName ?? "",
+    batchNumber: record.batchNumber ?? "",
+    mrp: Number(record.mrp ?? 0),
+    gst: Number(record.gst ?? 0),
+    retailerMargin: Number(record.retailerMargin ?? 20),
+    ptrSellRate: Number(record.ptrSellRate ?? record.mrp ?? 0),
+    manufacturer: record.manufacturer ?? "",
+    manufactureDate: record.manufactureDate ?? "",
+    expiryDate: record.expiryDate ?? "",
+    drugContent: record.drugContent ?? "",
+    packingDescription: record.packingDescription ?? "",
+    availableQuantity: Number(record.availableQuantity ?? 0),
+    unitQuantity: Number(record.unitQuantity ?? 0),
+    hsnCode: record.hsnCode ?? record.hsn ?? "",
+    hsn: record.hsn ?? record.hsnCode ?? "",
+  }));
+}
 
 function slugify(value: string) {
   return String(value || "item")
@@ -57,8 +83,11 @@ function slugify(value: string) {
 }
 
 function normalizeProduct(item: Partial<ProductRecord>): ProductRecord {
+  const identifier = item.id ?? item._id ?? Date.now().toString();
+
   return {
-    id: Number(item.id ?? Date.now()),
+    _id: item._id ? String(item._id) : undefined,
+    id: String(identifier),
     productName: item.productName ?? "",
     batchNumber: item.batchNumber ?? "",
     mrp: Number(item.mrp ?? 0),
@@ -73,6 +102,7 @@ function normalizeProduct(item: Partial<ProductRecord>): ProductRecord {
     availableQuantity: Number(item.availableQuantity ?? 0),
     unitQuantity: Number(item.unitQuantity ?? 0),
     hsnCode: item.hsnCode ?? item.hsn ?? "",
+    hsn: item.hsn ?? item.hsnCode ?? "",
   };
 }
 
@@ -98,7 +128,7 @@ function parseDate(value: string) {
   return new Date(`${value}T00:00:00`).getTime();
 }
 
-function getValidationErrors(form: ProductForm, hsnOptions: HsnRecord[]): FormErrors {
+function getValidationErrors(form: ProductForm, hsnOptions: HsnMongoRecord[]): FormErrors {
   const errors: FormErrors = {};
 
   if (!form.productName.trim()) errors.productName = "Product name is required.";
@@ -161,22 +191,42 @@ export default function NewProductPage() {
   const [form, setForm] = useState<ProductForm>(initialForm);
   const [errors, setErrors] = useState<FormErrors>({});
   const [toast, setToast] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [hsnOptions, setHsnOptions] = useState<HsnRecord[]>([]);
-
-  useEffect(() => { setHsnOptions(hsnService.activeValid()); }, []);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [productList, setProductList] = useState<ProductRecord[]>([]);
+  const [hsnOptions, setHsnOptions] = useState<HsnMongoRecord[]>([]);
 
   useEffect(() => {
-    const id = Number(searchParams.get("id"));
+    void fetch("/api/hsn", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Unable to load HSN options.");
+        const payload = await response.json();
+        setHsnOptions((payload.records as HsnMongoRecord[]).filter((record) => record.status === "Active"));
+      })
+      .catch(() => setHsnOptions([]));
+  }, []);
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const products = await fetchProducts();
+        setProductList(products);
+      } catch {
+        setProductList([]);
+      }
+    };
+
+    void loadProducts();
+  }, []);
+
+  useEffect(() => {
+    const id = searchParams.get("id");
     if (!id) {
       setEditingId(null);
       setForm(initialForm);
       return;
     }
 
-    const productList = getProducts();
-
-    const selected = productList.find((item) => Number(item.id) === id);
+    const selected = productList.find((item) => item.id === id || item._id === id);
     if (!selected) {
       setEditingId(null);
       setForm(initialForm);
@@ -201,12 +251,12 @@ export default function NewProductPage() {
       expiryDate: normalized.expiryDate ?? "",
       hsn: normalized.hsnCode,
     });
-  }, [searchParams]);
+  }, [productList, searchParams]);
 
   const manufacturerOptions = useMemo(() => {
-    const values = getProducts().map((item) => item.manufacturer).filter(Boolean);
+    const values = productList.map((item) => item.manufacturer).filter(Boolean);
     return Array.from(new Set(values));
-  }, [searchParams]);
+  }, [productList]);
 
   const handleChange = <K extends keyof ProductForm>(field: K, value: ProductForm[K]) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -249,7 +299,7 @@ export default function NewProductPage() {
     setForm((current) => ({ ...current, ptrSellRate: String(calculatedPtr) }));
   };
 
-  const handleSave = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const validationErrors = getValidationErrors(form, hsnOptions);
     setErrors(validationErrors);
@@ -258,8 +308,7 @@ export default function NewProductPage() {
       return;
     }
 
-    const payload: ProductRecord = {
-      id: editingId ?? Date.now(),
+    const payload = {
       productName: form.productName.trim(),
       batchNumber: form.batchNumber.trim(),
       mrp: Number(form.mrp || 0),
@@ -273,20 +322,38 @@ export default function NewProductPage() {
       packingDescription: form.packingDescription.trim(),
       availableQuantity: Number(form.availableQuantity || 0),
       unitQuantity: Number(form.unitQuantity || 0),
+      hsn: form.hsn.trim(),
       hsnCode: form.hsn.trim(),
+      replacement: false,
+      discountAllow: false,
+      dpcoProduct: false,
+      drugGroup: "",
+      unitType: "",
     };
 
-    if (editingId) {
-      mockService.update("products", editingId, payload);
-      window.sessionStorage.setItem("productToast", "Product updated successfully");
-    } else {
-      mockService.save("products", payload);
-      window.sessionStorage.setItem("productToast", "Product created successfully");
-    }
+    try {
+      const response = editingId
+        ? await fetch(`/api/products/${editingId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        : await fetch("/api/products", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
 
-    setTimeout(() => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to save product.");
+      }
+
+      window.sessionStorage.setItem("productToast", editingId ? "Product updated successfully" : "Product created successfully");
       router.push("/products");
-    }, 600);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Unable to save product.");
+    }
   };
 
   return (
@@ -566,7 +633,7 @@ export default function NewProductPage() {
                   >
                     <option value="">Select active HSN code</option>
                     {form.hsn && !hsnOptions.some((option) => option.hsnCode === form.hsn) && <option value={form.hsn} disabled>Saved value: {form.hsn} (select a valid code)</option>}
-                    {hsnOptions.map((option) => <option key={option.id} value={option.hsnCode}>{option.hsnCode} — {option.category}</option>)}
+                    {hsnOptions.map((option) => <option key={option._id} value={option.hsnCode}>{option.hsnCode} — {option.category}</option>)}
                   </select>
                   {!hsnOptions.length && <div className="form-text">Complete an Active six-digit HSN record in HSN Master first.</div>}
                   {errors.hsn && <div className="invalid-feedback d-block">{errors.hsn}</div>}

@@ -1,15 +1,10 @@
-import { mockService } from "@/lib/mock-service";
-import salesmanData from "@/data/salesman.json";
 import type { Salesman } from "@/types/salesman";
 
-const COLLECTION = "salesmen";
-const SOURCE_META = "salesmenSourceMeta";
-const seedSalesmen = salesmanData as Array<Partial<Salesman> & { id: number }>;
-const sourceSignature = JSON.stringify(seedSalesmen);
-
-function normalize(record: Partial<Salesman> & { id: number }): Salesman {
+function normalizeSalesman(record: Partial<Salesman> & { _id?: string; id?: string }): Salesman {
+  const idValue = String(record._id ?? record.id ?? "");
   return {
-    id: Number(record.id),
+    _id: idValue,
+    id: idValue,
     fullName: String(record.fullName ?? "").trim(),
     mobileNumber: String(record.mobileNumber ?? "").trim(),
     isActive: record.isActive !== false,
@@ -18,30 +13,51 @@ function normalize(record: Partial<Salesman> & { id: number }): Salesman {
   };
 }
 
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    cache: "no-store",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options?.headers ?? {}),
+    },
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || "Unable to process Salesman request.");
+  }
+
+  return payload as T;
+}
+
 export const salesmanService = {
-  list(): Salesman[] {
-    if (typeof window !== "undefined") {
-      const sourceMeta = mockService.get<{ id: string; sourceSignature: string }>(SOURCE_META)[0];
-      if (sourceMeta?.sourceSignature !== sourceSignature) {
-        mockService.replace(COLLECTION, seedSalesmen as Salesman[]);
-        mockService.replace(SOURCE_META, [{ id: "source", sourceSignature }]);
-      }
-    }
-    return mockService.getOrSeed<Salesman>(COLLECTION, seedSalesmen as Salesman[]).map(normalize);
+  async list(): Promise<Salesman[]> {
+    const payload = await request<{ records: Array<Partial<Salesman> & { _id?: string }> }>('/api/salesmen');
+    return (payload.records ?? []).map((record) => normalizeSalesman(record));
   },
-  active(): Salesman[] {
-    return this.list().filter((salesman) => salesman.isActive);
+  async active(): Promise<Salesman[]> {
+    const records = await this.list();
+    return records.filter((salesman) => salesman.isActive);
   },
-  create(input: Pick<Salesman, "fullName" | "mobileNumber">): Salesman {
-    if (this.list().length >= 5) throw new Error("Maximum 5 salesman records are allowed.");
-    return normalize(mockService.save(COLLECTION, {
-      fullName: input.fullName.trim(),
-      mobileNumber: input.mobileNumber.trim(),
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    }));
+  async create(input: Pick<Salesman, "fullName" | "mobileNumber">): Promise<Salesman> {
+    const payload = await request<{ record: Partial<Salesman> & { _id?: string } }>('/api/salesmen', {
+      method: 'POST',
+      body: JSON.stringify({
+        fullName: input.fullName.trim(),
+        mobileNumber: input.mobileNumber.trim(),
+      }),
+    });
+    return normalizeSalesman(payload.record ?? {});
   },
-  update(id: number, input: Partial<Pick<Salesman, "fullName" | "mobileNumber" | "isActive">>): void {
-    mockService.update(COLLECTION, id, { ...input, updatedAt: new Date().toISOString() });
+  async update(id: string, input: Partial<Pick<Salesman, "fullName" | "mobileNumber" | "isActive">>): Promise<Salesman> {
+    const payload = await request<{ record: Partial<Salesman> & { _id?: string } }>(`/api/salesmen/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+    return normalizeSalesman(payload.record ?? { _id: id, ...input });
+  },
+  async delete(id: string): Promise<void> {
+    await request<{ success: true }>(`/api/salesmen/${id}`, { method: 'DELETE' });
   },
 };

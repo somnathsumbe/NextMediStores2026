@@ -2,7 +2,6 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui";
-import { partyService } from "@/lib/party-service";
 import { exportPartyExcel, exportPartyPdf } from "@/lib/party-export";
 import type { CustomerType, Party } from "@/types/party";
 
@@ -13,13 +12,31 @@ type FormState = Omit<Party, "id" | "closingBalance" | "outstandingBalance">;
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const emptyForm: FormState = { firmName: "", ownerName: "", pharmacistName: "", customerType: "Dealer", active: true, email: "", phone: "", alternatePhone: "", address: "", city: "", state: "Maharashtra", pincode: "", drugLicenceNumber: "", drugLicenceExpiry: "", foodLicenceNo: "", registeredGSTN: false, gstnNumber: "", scheme: "", discount: 0, paymentTerms: "Cash", creditLimit: 0, openingBalance: 0, openingBalanceType: "Debit", creditLocked: false, contactPerson: "", whatsappNumber: "", notes: "" };
 
+async function fetchJson<T>(input: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(input, {
+    cache: "no-store",
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || "Unable to process your request.");
+  }
+
+  return payload as T;
+}
+
 function licenceStatus(expiry: string): LicenceStatus { if (!expiry) return "Not Available"; const days = Math.ceil((new Date(`${expiry}T23:59:59`).getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000); return days < 0 ? "Expired" : days <= 30 ? "Expiring Soon" : "Valid"; }
 function badgeClass(status: LicenceStatus) { return status === "Expired" ? "badge-danger" : status === "Expiring Soon" ? "badge-warning" : status === "Valid" ? "badge-success" : "badge-secondary"; }
 
 export default function Parties() {
   const [records, setRecords] = useState<Party[]>([]);
   const [form, setForm] = useState<FormState>(emptyForm);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
@@ -32,11 +49,26 @@ export default function Parties() {
   const [viewing, setViewing] = useState<Party | null>(null);
   const [deleting, setDeleting] = useState<Party | null>(null);
 
-  const refresh = () => setRecords(partyService.list());
-  useEffect(refresh, []);
-  const cities = partyService.cities();
-  const states = partyService.states();
-  const schemes = partyService.schemes();
+  const refresh = async () => {
+    const payload = await fetchJson<{ records?: Party[] }>("/api/parties");
+    const nextRecords = (payload.records ?? []).map((party) => ({
+      ...party,
+      id: String(party.id ?? party._id ?? ""),
+      _id: party._id ?? party.id,
+      active: Boolean(party.active),
+      registeredGSTN: Boolean(party.registeredGSTN),
+      creditLocked: Boolean(party.creditLocked),
+    }));
+    setRecords(nextRecords);
+  };
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  const cities = useMemo(() => Array.from(new Set(records.map((record) => record.city).filter(Boolean))).sort((left, right) => left.localeCompare(right)), [records]);
+  const states = useMemo(() => Array.from(new Set(records.map((record) => record.state).filter(Boolean))).sort((left, right) => left.localeCompare(right)), [records]);
+  const schemes = useMemo(() => Array.from(new Set(records.map((record) => record.scheme).filter(Boolean))).sort((left, right) => left.localeCompare(right)), [records]);
   const today = new Date().toISOString().slice(0, 10);
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -64,21 +96,66 @@ export default function Parties() {
     const pin = /^[1-9]\d{5}$/.test(form.pincode);
     return email && phone && alternate && whatsapp && gstn && pin && !!form.firmName.trim() && !!form.ownerName.trim() && !!form.pharmacistName.trim() && !!form.address.trim() && !!form.city && !!form.state && !!form.drugLicenceNumber.trim() && !!form.drugLicenceExpiry && !!form.foodLicenceNo.trim() && form.creditLimit >= 0 && form.openingBalance >= 0;
   }
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
     if (!validation()) { notify("error", "Please complete all required fields with valid values."); return; }
     const existing = records.find((party) => party.id === editingId);
     const payload: FormState = { ...form, gstnNumber: form.registeredGSTN ? form.gstnNumber.trim().toUpperCase() : "" };
     try {
-      if (editingId === null) { partyService.create({ ...payload, closingBalance: payload.openingBalance, outstandingBalance: payload.openingBalance }); notify("success", "Party added successfully."); }
-      else { partyService.update(editingId, { ...payload, closingBalance: existing?.closingBalance ?? payload.openingBalance, outstandingBalance: existing?.outstandingBalance ?? payload.openingBalance }); notify("success", "Party updated successfully."); }
-      refresh(); reset();
-    } catch (error) { notify("error", error instanceof Error ? error.message : "Unable to save party."); }
+      const requestBody = {
+        ...payload,
+        closingBalance: existing?.closingBalance ?? payload.openingBalance,
+        outstandingBalance: existing?.outstandingBalance ?? payload.openingBalance,
+      };
+      if (editingId === null) {
+        await fetchJson<{ record?: Party }>('/api/parties', { method: 'POST', body: JSON.stringify(requestBody) });
+        notify("success", "Party added successfully.");
+      } else {
+        await fetchJson<{ record?: Party }>(`/api/parties/${editingId}`, { method: 'PUT', body: JSON.stringify(requestBody) });
+        notify("success", "Party updated successfully.");
+      }
+      await refresh();
+      reset();
+    } catch (error) {
+      notify("error", error instanceof Error ? error.message : "Unable to save party.");
+    }
   }
   function edit(party: Party) { const { id, closingBalance, outstandingBalance, ...values } = party; void id; void closingBalance; void outstandingBalance; setForm(values); setEditingId(party.id); window.scrollTo({ top: 0, behavior: "smooth" }); }
-  function remove() { if (!deleting) return; try { partyService.delete(deleting.id); setDeleting(null); refresh(); notify("success", "Party deleted successfully."); } catch (error) { notify("error", error instanceof Error ? error.message : "Unable to delete party."); } }
-  function toggle(party: Party) { partyService.toggleStatus(party.id); refresh(); notify("success", `${party.firmName} marked ${party.active ? "Inactive" : "Active"}.`); }
-  function toggleCreditLock(party: Party) { partyService.toggleCreditLock(party.id); refresh(); notify("success", `${party.firmName} credit is now ${party.creditLocked ? "Unlocked" : "Locked"}.`); }
+  async function remove() {
+    if (!deleting) return;
+    try {
+      await fetchJson<{ success?: boolean }>(`/api/parties/${deleting.id}`, { method: "DELETE" });
+      setDeleting(null);
+      await refresh();
+      notify("success", "Party deleted successfully.");
+    } catch (error) {
+      notify("error", error instanceof Error ? error.message : "Unable to delete party.");
+    }
+  }
+  async function toggle(party: Party) {
+    try {
+      await fetchJson<{ record?: Party }>(`/api/parties/${party.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ ...party, active: !party.active }),
+      });
+      await refresh();
+      notify("success", `${party.firmName} marked ${party.active ? "Inactive" : "Active"}.`);
+    } catch (error) {
+      notify("error", error instanceof Error ? error.message : "Unable to update status.");
+    }
+  }
+  async function toggleCreditLock(party: Party) {
+    try {
+      await fetchJson<{ record?: Party }>(`/api/parties/${party.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ ...party, creditLocked: !party.creditLocked }),
+      });
+      await refresh();
+      notify("success", `${party.firmName} credit is now ${party.creditLocked ? "Unlocked" : "Locked"}.`);
+    } catch (error) {
+      notify("error", error instanceof Error ? error.message : "Unable to update credit status.");
+    }
+  }
   const field = (name: keyof FormState, label: string, type = "text", required = false, disabled = false) => <div className="col-md-4"><label className="form-label" htmlFor={name}>{label}{required ? " *" : ""}</label><input id={name} className="form-control" type={type} value={String(form[name])} required={required} disabled={disabled} onChange={(event) => update(name, type === "number" ? Number(event.target.value) : event.target.value as FormState[typeof name])} /></div>;
 
   return <div className="page party-page"><PageHeader title="Party Details" subtitle="Manage pharmacies, hospitals, distributors and suppliers" />{toast && <div className={`alert alert-${toast.type === "success" ? "success" : "danger"}`} role="status">{toast.message}</div>}

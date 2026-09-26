@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { mockService } from "@/lib/mock-service";
 
 type ProductRecord = {
-  id: number;
+  _id?: string;
+  id: string;
   productName: string;
   batchNumber: string;
   mrp: number;
@@ -115,9 +115,12 @@ function getStockStatus(product: ProductRecord): "Available" | "Low Stock" | "Ou
   return "Available";
 }
 
-function normalizeProduct(item: Partial<ProductRecord>): ProductRecord {
+function normalizeProduct(item: Partial<ProductRecord> & { _id?: string | { toString(): string } }): ProductRecord {
+  const identifier = item.id ?? item._id ?? Date.now().toString();
+
   return {
-    id: Number(item.id ?? Date.now()),
+    _id: item._id ? String(item._id) : undefined,
+    id: String(identifier),
     productName: item.productName ?? "Unknown Product",
     batchNumber: item.batchNumber ?? "",
     mrp: Number(item.mrp ?? 0),
@@ -135,10 +138,15 @@ function normalizeProduct(item: Partial<ProductRecord>): ProductRecord {
   };
 }
 
-function mergeProducts(): ProductRecord[] {
-  const products = mockService.get<ProductRecord>("products");
+async function fetchProducts(): Promise<ProductRecord[]> {
+  const response = await fetch("/api/products", { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("Unable to load product records.");
+  }
 
-  return products.map(normalizeProduct);
+  const payload = await response.json();
+  const records = Array.isArray(payload?.records) ? payload.records : Array.isArray(payload) ? payload : [];
+  return records.map((item: Partial<ProductRecord>) => normalizeProduct(item));
 }
 
 function ProductToast({ message, onClose }: { message: string; onClose: () => void }) {
@@ -287,8 +295,18 @@ export default function ProductsPage() {
   }
 
   useEffect(() => {
-    setProducts(mergeProducts());
-    setLoading(false);
+    const loadProducts = async () => {
+      try {
+        const nextProducts = await fetchProducts();
+        setProducts(nextProducts);
+      } catch {
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadProducts();
 
     const savedToast = window.sessionStorage.getItem("productToast");
     if (savedToast) {
@@ -939,12 +957,21 @@ export default function ProductsPage() {
                 <button
                   type="button"
                   className="btn btn-danger"
-                  onClick={() => {
+                  onClick={async () => {
                     const deletedName = deleteProduct.productName;
-                    mockService.remove("products", deleteProduct.id);
-                    setProducts(mergeProducts());
-                    setDeleteProduct(null);
-                    showToast(`Product "${deletedName}" deleted successfully.`);
+                    try {
+                      const response = await fetch(`/api/products/${deleteProduct.id}`, { method: "DELETE" });
+                      if (!response.ok) {
+                        const payload = await response.json().catch(() => ({}));
+                        throw new Error(payload.error || "Unable to delete product.");
+                      }
+                      setProducts((current) => current.filter((product) => product.id !== deleteProduct.id));
+                      showToast(`Product "${deletedName}" deleted successfully.`);
+                    } catch (error) {
+                      showToast(error instanceof Error ? error.message : "Unable to delete product.");
+                    } finally {
+                      setDeleteProduct(null);
+                    }
                   }}
                 >
                   Delete

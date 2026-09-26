@@ -1,12 +1,12 @@
-import type { HsnRecord } from "@/types/hsn";
+type HsnExportRecord = { hsnCode: string; category: string; status: string };
 
 const columns = ["HSN Code", "Category", "Status"];
 
-function rows(records: HsnRecord[]) {
+function rows(records: HsnExportRecord[]) {
   return records.map((record) => [record.hsnCode, record.category, record.status]);
 }
 
-export async function exportHsnExcel(records: HsnRecord[]) {
+export async function exportHsnExcel(records: HsnExportRecord[]) {
   const { utils, writeFileXLSX } = await import("xlsx");
   const worksheet = utils.aoa_to_sheet([columns, ...rows(records)]);
   worksheet["!cols"] = [{ wch: 14 }, { wch: 30 }, { wch: 12 }];
@@ -15,7 +15,7 @@ export async function exportHsnExcel(records: HsnRecord[]) {
   writeFileXLSX(workbook, `hsn-master-${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
-export async function exportHsnPdf(records: HsnRecord[]) {
+export async function exportHsnPdf(records: HsnExportRecord[]) {
   const [{ jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
   const document = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const exportDate = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });

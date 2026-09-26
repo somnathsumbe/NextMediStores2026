@@ -4,14 +4,14 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui";
 
 type AccountType = "Savings" | "Current" | "OD" | "CC";
-type BankRecord = { id: number; party: string; bankName: string; address: string; state: string; city: string; ifsc: string; accountNo: string; accountType?: AccountType; isDefault: boolean; status: "Active" | "Inactive" };
+type BankRecord = { _id?: string; id: string; party: string; bankName: string; address: string; state: string; city: string; ifsc: string; accountNo: string; accountType?: AccountType; isDefault: boolean; status: "Active" | "Inactive" };
 type Store = { parties: string[]; banks: string[]; cities: string[]; records: BankRecord[] };
-type FormState = Omit<BankRecord, "id">;
+type FormState = Omit<BankRecord, "id" | "_id">;
 const pageSizes = [5, 10, 20];
 const emptyForm: FormState = { party: "", bankName: "", address: "", state: "Maharashtra", city: "Ahilyanagar", ifsc: "", accountNo: "", accountType: undefined, isDefault: false, status: "Active" };
 
 function maskAccount(value: string) { return value.length > 4 ? `XXXX XXXX ${value.slice(-4)}` : value; }
-function errorFor(form: FormState, records: BankRecord[], editingId: number | null) {
+function errorFor(form: FormState, records: BankRecord[], editingId: string | null) {
   const errors: Record<string, string> = {};
   if (!form.party) errors.party = "Party is required.";
   if (!form.bankName) errors.bankName = "Bank name is required.";
@@ -27,7 +27,7 @@ function errorFor(form: FormState, records: BankRecord[], editingId: number | nu
 export default function BankInfo() {
   const [store, setStore] = useState<Store>({ parties: [], banks: [], cities: [], records: [] });
   const [form, setForm] = useState<FormState>(emptyForm);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [viewing, setViewing] = useState<BankRecord | null>(null);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState({ party: "", bank: "", state: "", city: "", status: "All", defaultValue: "All" });
@@ -40,7 +40,7 @@ export default function BankInfo() {
   const [modal, setModal] = useState<"party" | "bank" | "city" | null>(null);
   const [masterName, setMasterName] = useState("");
 
-  async function load() { setLoading(true); try { const response = await fetch("/api/bank-details", { cache: "no-store" }); if (!response.ok) throw new Error(); setStore(await response.json()); } catch { setToast("Unable to load bank details. Please try again."); } finally { setLoading(false); } }
+  async function load() { setLoading(true); try { const response = await fetch("/api/bank-details", { cache: "no-store" }); if (!response.ok) throw new Error(); const nextStore = await response.json(); const normalized = { ...nextStore, records: (nextStore.records ?? []).map((record: any) => ({ ...record, _id: String(record._id ?? record.id ?? ""), id: String(record._id ?? record.id ?? ""), status: record.status === "Inactive" ? "Inactive" : "Active" })) }; setStore(normalized); } catch { setToast("Unable to load bank details. Please try again."); } finally { setLoading(false); } }
   useEffect(() => { load(); }, []);
   useEffect(() => { setPage(1); }, [search, filters, pageSize]);
 
@@ -62,8 +62,8 @@ export default function BankInfo() {
   function update(field: keyof FormState, value: string | boolean | undefined) { setForm((current) => ({ ...current, [field]: field === "ifsc" ? String(value).replace(/\s/g, "").toUpperCase() : field === "accountNo" ? String(value).replace(/\D/g, "") : value })); setTouched((current) => ({ ...current, [field]: true })); }
   function reset() { setForm(emptyForm); setEditingId(null); setTouched({}); }
   async function submit(event: FormEvent) { event.preventDefault(); setTouched({ party: true, bankName: true, address: true, state: true, city: true, ifsc: true, accountNo: true }); const errors = errorFor(form, store.records, editingId); if (Object.keys(errors).length) { setToast(Object.values(errors)[0]); return; } setSaving(true); try { const response = await fetch(editingId ? `/api/bank-details/${editingId}` : "/api/bank-details", { method: editingId ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, address: form.address.trim(), ifsc: form.ifsc.toUpperCase(), accountNo: form.accountNo.trim() }) }); if (!response.ok) { const body = await response.json(); throw new Error(body.error); } await load(); reset(); setToast(editingId ? "Bank details updated successfully." : "Bank details saved successfully."); } catch (error) { setToast(error instanceof Error ? error.message : "Unable to save bank details. Please try again."); } finally { setSaving(false); } }
-  function edit(record: BankRecord, copy = false) { setForm({ party: record.party, bankName: record.bankName, address: record.address, state: record.state, city: record.city, ifsc: copy ? "" : record.ifsc, accountNo: "", accountType: record.accountType, isDefault: copy ? false : record.isDefault, status: copy ? "Active" : record.status }); setEditingId(copy ? null : record.id); window.scrollTo({ top: 0, behavior: "smooth" }); }
-  async function action(id: number, actionName: "default" | "status") { try { const response = await fetch(`/api/bank-details/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: actionName }) }); if (!response.ok) throw new Error(); await load(); setToast(actionName === "default" ? "Default account updated." : "Account status updated."); } catch { setToast("Unable to update this account."); } }
+  function edit(record: BankRecord, copy = false) { setForm({ party: record.party, bankName: record.bankName, address: record.address, state: record.state, city: record.city, ifsc: copy ? "" : record.ifsc, accountNo: "", accountType: record.accountType, isDefault: copy ? false : record.isDefault, status: copy ? "Active" : record.status }); setEditingId(copy ? null : record._id ?? record.id); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  async function action(id: string, actionName: "default" | "status") { try { const response = await fetch(`/api/bank-details/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: actionName }) }); if (!response.ok) { const value = await response.json().catch(() => ({ error: "Unable to update this account." })); throw new Error(value.error || "Unable to update this account."); } await load(); setToast(actionName === "default" ? "Default account updated." : "Account status updated."); } catch (error) { setToast(error instanceof Error ? error.message : "Unable to update this account."); } }
   async function addMaster() { const name = masterName.trim(); if (!name) return; try { const response = await fetch("/api/bank-details", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ masterType: modal, name }) }); if (!response.ok) throw new Error(); await load(); if (modal === "party") update("party", name); if (modal === "bank") update("bankName", name); if (modal === "city") update("city", name); setModal(null); setMasterName(""); setToast(`${modal} added successfully.`); } catch { setToast(`Unable to add ${modal}.`); } }
   function clearFilters() { setFilters({ party: "", bank: "", state: "", city: "", status: "All", defaultValue: "All" }); setSearch(""); }
   async function copyValue(value: string, label: string) { try { await navigator.clipboard.writeText(value); setToast(`${label} copied.`); } catch { setToast(`Unable to copy ${label.toLowerCase()}.`); } }

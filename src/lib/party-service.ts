@@ -4,7 +4,7 @@ import type { Party } from "@/types/party";
 
 const COLLECTION = "partyDetails";
 const SOURCE_META = "partyDetailsMeta";
-type PartySeed = Omit<Party, "registeredGSTN" | "gstnNumber"> & { registeredGSTN?: boolean; gstnNumber?: string; gstn?: string };
+type PartySeed = Omit<Party, "registeredGSTN" | "gstnNumber" | "id"> & { id?: string | number; registeredGSTN?: boolean; gstnNumber?: string; gstn?: string };
 const seedRecords: Party[] = partyData.records.map((record) => normalize({ ...record } as PartySeed));
 const sourceSignature = JSON.stringify(seedRecords);
 
@@ -14,7 +14,7 @@ function normalize(record: PartySeed): Party {
   const registeredGSTN = Boolean(record.registeredGSTN ?? record.gstn);
   return {
     ...record,
-    id: Number(record.id),
+    id: String(record.id ?? ""),
     customerType: record.customerType === "Retailer" || record.customerType === "Supplier" || record.customerType === "Other" ? record.customerType : "Dealer",
     registeredGSTN,
     gstnNumber: registeredGSTN ? String(record.gstnNumber ?? record.gstn ?? "").trim().toUpperCase() : "",
@@ -40,10 +40,10 @@ function entries(): Party[] {
   return stored.map((record) => normalize(record));
 }
 
-function assertGstn(party: Pick<Party, "registeredGSTN" | "gstnNumber">, exceptId?: number) {
+function assertGstn(party: Pick<Party, "registeredGSTN" | "gstnNumber">, exceptId?: string) {
   const gstnNumber = party.registeredGSTN ? party.gstnNumber.trim().toUpperCase() : "";
   if (party.registeredGSTN && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstnNumber)) throw new Error("Enter a valid GSTN number.");
-  if (gstnNumber && entries().some((record) => record.id !== exceptId && record.gstnNumber.toUpperCase() === gstnNumber)) throw new Error("This GSTN number already exists.");
+  if (gstnNumber && entries().some((record) => String(record.id) !== String(exceptId) && record.gstnNumber.toUpperCase() === gstnNumber)) throw new Error("This GSTN number already exists.");
 }
 
 export const partyService = {
@@ -53,15 +53,15 @@ export const partyService = {
   schemes(): string[] { return Array.from(new Set(partyData.schemes)).sort((a, b) => a.localeCompare(b)); },
   create(input: Omit<Party, "id">): Party {
     assertGstn(input);
-    const record = normalize({ ...input, id: 0 });
+    const record = normalize({ ...input, id: "0" });
     return mockService.save(COLLECTION, record) as Party;
   },
-  update(id: number, input: Omit<Party, "id">): void {
-    if (!entries().some((record) => record.id === id)) throw new Error("Party record not found.");
+  update(id: string, input: Omit<Party, "id">): void {
+    if (!entries().some((record) => String(record.id) === String(id))) throw new Error("Party record not found.");
     assertGstn(input, id);
     mockService.update(COLLECTION, id, normalize({ ...input, id }));
   },
-  delete(id: number): void { if (!entries().some((record) => record.id === id)) throw new Error("Party record not found."); mockService.remove(COLLECTION, id); },
-  toggleStatus(id: number): void { const record = entries().find((item) => item.id === id); if (record) mockService.update(COLLECTION, id, { active: !record.active }); },
-  toggleCreditLock(id: number): void { const record = entries().find((item) => item.id === id); if (record) mockService.update(COLLECTION, id, { creditLocked: !record.creditLocked }); },
+  delete(id: string): void { if (!entries().some((record) => String(record.id) === String(id))) throw new Error("Party record not found."); mockService.remove(COLLECTION, id); },
+  toggleStatus(id: string): void { const record = entries().find((item) => String(item.id) === String(id)); if (record) mockService.update(COLLECTION, id, { active: !record.active }); },
+  toggleCreditLock(id: string): void { const record = entries().find((item) => String(item.id) === String(id)); if (record) mockService.update(COLLECTION, id, { creditLocked: !record.creditLocked }); },
 };

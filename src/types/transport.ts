@@ -1,7 +1,8 @@
 export type TransportStatus = "Active" | "Inactive";
 
 export type TransportRecord = {
-  id: number;
+  _id: string;
+  id: string;
   city: string;
   name: string;
   address: string;

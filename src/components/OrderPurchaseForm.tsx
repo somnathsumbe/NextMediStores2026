@@ -207,13 +207,20 @@ export default function OrderPurchaseForm({ mode, title, subtitle, initialOrder 
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const activeSalesmen = salesmanService.active();
-    const previousSalesman = initialOrder?.salesmanId
-      ? salesmanService.list().find((salesman) => String(salesman.id) === String(initialOrder.salesmanId))
-      : undefined;
-    setSalesmen(previousSalesman && !activeSalesmen.some((salesman) => salesman.id === previousSalesman.id)
-      ? [...activeSalesmen, previousSalesman]
-      : activeSalesmen);
+    const loadSalesmen = async () => {
+      const activeSalesmen = await salesmanService.active();
+      const allSalesmen = await salesmanService.list();
+      const previousSalesman = initialOrder?.salesmanId
+        ? allSalesmen.find((salesman) => String(salesman.id) === String(initialOrder.salesmanId))
+        : undefined;
+      const nextSalesmen = previousSalesman && !activeSalesmen.some((salesman) => salesman.id === previousSalesman.id)
+        ? [...activeSalesmen, previousSalesman]
+        : activeSalesmen;
+      setSalesmen(nextSalesmen);
+    };
+
+    void loadSalesmen();
+
     if (initialOrder) {
       setForm({
         productId: String(initialOrder.productId ?? ""),

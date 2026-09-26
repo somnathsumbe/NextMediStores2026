@@ -3,7 +3,8 @@ export type PartyStatus = "Active" | "Inactive";
 export type OpeningBalanceType = "Debit" | "Credit";
 
 export type Party = {
-  id: number;
+  _id?: string;
+  id: string;
   firmName: string;
   ownerName: string;
   pharmacistName: string;

@@ -6,3 +6,10 @@ export type HsnRecord = {
   category: string;
   status: HsnStatus;
 };
+
+export type HsnMongoRecord = {
+  _id: string;
+  hsnCode: string;
+  category: string;
+  status: HsnStatus;
+};

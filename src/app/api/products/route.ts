@@ -1,149 +1,129 @@
-import { promises as fs } from "fs";
-import path from "path";
-import type { Product } from "@/types/product";
+import { NextResponse } from "next/server";
+import type { ObjectId, WithId } from "mongodb";
+import { getMongoDb } from "@/lib/mongodb";
 
-const productsFilePath = path.join(process.cwd(), "src", "data", "products.json");
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
-async function readProducts(): Promise<Product[]> {
-  try {
-    const file = await fs.readFile(productsFilePath, "utf-8");
-    const parsed = JSON.parse(file);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed as Product[];
-  } catch {
-    return [];
-  }
+const collectionName = "products";
+
+type ProductDocument = {
+  _id?: ObjectId;
+  productName: string;
+  batchNumber: string;
+  mrp: number;
+  gst: number;
+  retailerMargin: number;
+  ptrSellRate: number;
+  manufacturer: string;
+  manufactureDate: string;
+  expiryDate: string;
+  drugContent: string;
+  packingDescription: string;
+  replacement: boolean;
+  discountAllow: boolean;
+  dpcoProduct: boolean;
+  availableQuantity: number;
+  drugGroup: string;
+  unitType: string;
+  unitQuantity: number;
+  hsn: string;
+  hsnCode?: string;
+};
+
+function normalizeProduct(body: unknown): ProductDocument {
+  const value = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  const productName = String(value.productName ?? "").trim();
+  const batchNumber = String(value.batchNumber ?? "").trim();
+  const manufacturer = String(value.manufacturer ?? "").trim();
+  const manufactureDate = String(value.manufactureDate ?? "").trim();
+  const expiryDate = String(value.expiryDate ?? "").trim();
+  const drugContent = String(value.drugContent ?? "").trim();
+  const packingDescription = String(value.packingDescription ?? "").trim();
+  const hsn = String(value.hsn ?? value.hsnCode ?? "").trim();
+
+  return {
+    productName,
+    batchNumber,
+    mrp: Number(value.mrp ?? 0),
+    gst: Number(value.gst ?? value.gstPercentage ?? 0),
+    retailerMargin: Number(value.retailerMargin ?? 0),
+    ptrSellRate: Number(value.ptrSellRate ?? 0),
+    manufacturer,
+    manufactureDate,
+    expiryDate,
+    drugContent,
+    packingDescription,
+    replacement: Boolean(value.replacement),
+    discountAllow: Boolean(value.discountAllow),
+    dpcoProduct: Boolean(value.dpcoProduct),
+    availableQuantity: Number(value.availableQuantity ?? 0),
+    drugGroup: String(value.drugGroup ?? "").trim(),
+    unitType: String(value.unitType ?? "").trim(),
+    unitQuantity: Number(value.unitQuantity ?? 0),
+    hsn,
+    hsnCode: hsn,
+  };
 }
 
-async function writeProducts(products: Product[]) {
-  await fs.writeFile(productsFilePath, `${JSON.stringify(products, null, 2)}\n`, "utf-8");
+function isValidProduct(value: Partial<ProductDocument>) {
+  if (!value.productName || !value.batchNumber || !value.manufacturer || !value.manufactureDate || !value.expiryDate) return false;
+  if (!String(value.hsn ?? value.hsnCode ?? "").trim()) return false;
+  if (!Number.isFinite(Number(value.mrp)) || Number(value.mrp) < 0) return false;
+  if (!Number.isFinite(Number(value.ptrSellRate)) || Number(value.ptrSellRate) < 0) return false;
+  if (!Number.isFinite(Number(value.availableQuantity)) || Number(value.availableQuantity) < 0) return false;
+  if (!Number.isFinite(Number(value.unitQuantity)) || Number(value.unitQuantity) <= 0) return false;
+  if (!Number.isFinite(Number(value.gst)) || Number(value.gst) < 0) return false;
+  if (!Number.isFinite(Number(value.retailerMargin)) || Number(value.retailerMargin) < 0) return false;
+  return true;
 }
 
-function isProductRecord(value: unknown): value is Product {
-  if (!value || typeof value !== "object") return false;
-
-  const record = value as Record<string, unknown>;
-
-  return (
-    typeof record.id === "number" &&
-    typeof record.productName === "string" &&
-    typeof record.batchNumber === "string" &&
-    typeof record.mrp === "number" &&
-    typeof record.gst === "number" &&
-    typeof record.retailerMargin === "number" &&
-    typeof record.ptrSellRate === "number" &&
-    typeof record.manufacturer === "string" &&
-    typeof record.manufactureDate === "string" &&
-    typeof record.expiryDate === "string" &&
-    typeof record.drugContent === "string" &&
-    typeof record.packingDescription === "string" &&
-    typeof record.replacement === "boolean" &&
-    typeof record.discountAllow === "boolean" &&
-    typeof record.dpcoProduct === "boolean" &&
-    typeof record.availableQuantity === "number" &&
-    typeof record.drugGroup === "string" &&
-    typeof record.unitType === "string" &&
-    typeof record.unitQuantity === "number" &&
-    typeof record.hsn === "string"
-  );
+function serialize(record: WithId<ProductDocument>) {
+  return {
+    ...record,
+    _id: record._id.toString(),
+    id: record._id.toString(),
+    hsn: record.hsn ?? record.hsnCode ?? "",
+  };
 }
 
 export async function GET() {
   try {
-    const products = await readProducts();
-    return Response.json(products);
-  } catch {
-    return Response.json({ error: "Unable to load products." }, { status: 500 });
+    const collection = (await getMongoDb()).collection<ProductDocument>(collectionName);
+    const records = await collection.find({}).sort({ productName: 1, batchNumber: 1 }).toArray();
+    return NextResponse.json({ records: records.map((record) => serialize(record)) });
+  } catch (error) {
+    console.error("Product fetch failed:", error);
+    const message = error instanceof Error ? error.message : "Unable to load products.";
+    const status = /ECONNREFUSED|ENOTFOUND|querySrv|MongoDB Atlas connection failed/i.test(message) ? 503 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const product = normalizeProduct(body);
 
-    if (!body || typeof body !== "object") {
-      return Response.json({ error: "Invalid product data." }, { status: 400 });
+    if (!isValidProduct(product)) {
+      return NextResponse.json({ error: "Product validation failed." }, { status: 400 });
     }
 
-    const product = body as Record<string, unknown>;
-    const trimmedProductName = String(product.productName ?? "").trim();
-    const trimmedBatchNumber = String(product.batchNumber ?? "").trim();
-    const trimmedManufacturer = String(product.manufacturer ?? "").trim();
-    const manufactureDate = String(product.manufactureDate ?? "").trim();
-    const expiryDate = String(product.expiryDate ?? "").trim();
-    const availableQuantity = Number(product.availableQuantity ?? 0);
-    const unitQuantity = Number(product.unitQuantity ?? 0);
-
-    if (!trimmedProductName || !trimmedBatchNumber || !trimmedManufacturer || !manufactureDate || !expiryDate || Number.isNaN(Number(product.mrp)) || Number(product.mrp) < 0 || Number.isNaN(Number(product.ptrSellRate)) || Number(product.ptrSellRate) < 0 || !Number.isFinite(availableQuantity) || availableQuantity < 0 || !Number.isFinite(unitQuantity) || unitQuantity <= 0) {
-      return Response.json({ error: "Product validation failed." }, { status: 400 });
-    }
-
-    const sanitizedProduct: Product = {
-      id: Number(product.id ?? 0),
-      productName: trimmedProductName,
-      batchNumber: trimmedBatchNumber,
-      mrp: Number(product.mrp ?? 0),
-      gst: Number(product.gst ?? 0),
-      retailerMargin: Number(product.retailerMargin ?? 0),
-      ptrSellRate: Number(product.ptrSellRate ?? 0),
-      manufacturer: trimmedManufacturer,
-      manufactureDate,
-      expiryDate,
-      drugContent: String(product.drugContent ?? "").trim(),
-      packingDescription: String(product.packingDescription ?? "").trim(),
-      replacement: Boolean(product.replacement),
-      discountAllow: Boolean(product.discountAllow),
-      dpcoProduct: Boolean(product.dpcoProduct),
-      availableQuantity,
-      drugGroup: String(product.drugGroup ?? "").trim(),
-      unitType: String(product.unitType ?? "").trim(),
-      unitQuantity,
-      hsn: String(product.hsn ?? product.hsnCode ?? "").trim(),
-      hsnCode: String(product.hsnCode ?? product.hsn ?? "").trim(),
-    };
-
-    if (!isProductRecord(sanitizedProduct)) {
-      return Response.json({ error: "Invalid product data." }, { status: 400 });
-    }
-
-    const products = await readProducts();
-    const normalizedName = sanitizedProduct.productName.toLowerCase();
-    const normalizedBatch = sanitizedProduct.batchNumber.toLowerCase();
-
-    const duplicate = products.some((product) => {
-      return (
-        product.productName.trim().toLowerCase() === normalizedName &&
-        product.batchNumber.trim().toLowerCase() === normalizedBatch
-      );
+    const collection = (await getMongoDb()).collection<ProductDocument>(collectionName);
+    const duplicate = await collection.findOne({
+      productName: { $regex: new RegExp(`^${product.productName.replace(/[.*+?^${}()|[\]\\]/g, "\\$")}$$`, "i") },
+      batchNumber: { $regex: new RegExp(`^${product.batchNumber.replace(/[.*+?^${}()|[\]\\]/g, "\\$")}$$`, "i") },
     });
 
     if (duplicate) {
-      return Response.json({ error: "A product with the same name and batch already exists." }, { status: 409 });
+      return NextResponse.json({ error: "A product with the same name and batch already exists." }, { status: 409 });
     }
 
-    const maxId = products.reduce((max, product) => Math.max(max, Number(product.id) || 0), 0);
-    const nextProduct: Product = {
-      ...sanitizedProduct,
-      id: maxId + 1,
-    };
-
-    const nextProducts = [...products, nextProduct];
-    await writeProducts(nextProducts);
-    return Response.json(nextProduct, { status: 201 });
-  } catch {
-    return Response.json({ error: "Unable to save product." }, { status: 500 });
-  }
-}
-
-export async function DELETE() {
-  try {
-    const products = await readProducts();
-    await writeProducts(products);
-    return Response.json({ success: true });
-  } catch {
-    return Response.json({ error: "Unable to update product data." }, { status: 500 });
+    const result = await collection.insertOne(product);
+    const saved = await collection.findOne({ _id: result.insertedId });
+    return NextResponse.json({ record: saved ? serialize(saved) : null }, { status: 201 });
+  } catch (error) {
+    console.error("Product create failed:", error);
+    const message = error instanceof Error ? error.message : "Unable to save product.";
+    return NextResponse.json({ error: message }, { status: message.includes("already exists") ? 409 : 400 });
   }
 }

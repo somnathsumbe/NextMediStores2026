@@ -1,5 +1,6 @@
 export type Salesman = {
-  id: number;
+  _id?: string;
+  id: string;
   fullName: string;
   mobileNumber: string;
   isActive: boolean;
