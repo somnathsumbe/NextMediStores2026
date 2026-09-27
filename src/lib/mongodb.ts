@@ -1,13 +1,14 @@
 import { MongoClient, type MongoClientOptions } from "mongodb";
 
-const uri = process.env.MONGODB_URI;
 const dbName = process.env.MONGODB_DB || "medistores";
 
-if (!uri) {
-  throw new Error("MONGODB_URI is not configured. Add it to .env.local on the server.");
+function getMongoUri() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error("MONGODB_URI is not configured. Add it to .env.local on the server.");
+  }
+  return uri;
 }
-
-const mongodbUri = uri;
 
 const options: MongoClientOptions = {
   maxPoolSize: 10,
@@ -26,6 +27,8 @@ let clientPromise: Promise<MongoClient> | undefined;
 
 function getClientPromise() {
   if (clientPromise) return clientPromise;
+
+  const mongodbUri = getMongoUri();
 
   clientPromise = global.__medistoreMongoClientPromise ?? new MongoClient(mongodbUri, options).connect().catch((error) => {
     console.error("MongoDB Atlas connection failed:", error);
