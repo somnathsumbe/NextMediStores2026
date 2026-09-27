@@ -3,6 +3,10 @@ import { ObjectId } from "mongodb";
 
 import { getMongoDb } from "@/lib/mongodb";
 
+export function generateStaticParams() {
+  return [];
+}
+
 const normalizeSalesmanRecord = (record: any) => ({
   ...record,
   _id: record._id?.toString?.() ?? record._id,

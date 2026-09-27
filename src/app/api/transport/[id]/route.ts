@@ -5,6 +5,10 @@ import { getMongoDb } from "@/lib/mongodb";
 
 export const dynamic = "force-dynamic";
 
+export function generateStaticParams() {
+  return [];
+}
+
 const collectionName = "transport";
 
 type TransportStatus = "Active" | "Inactive";

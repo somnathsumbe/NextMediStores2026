@@ -5,6 +5,10 @@ import type { HsnStatus } from "@/types/hsn";
 
 export const dynamic = "force-dynamic";
 
+export function generateStaticParams() {
+  return [];
+}
+
 const collectionName = "hsn";
 
 type RouteContext = { params: { id: string } };

@@ -4,6 +4,10 @@ import { getMongoDb } from "@/lib/mongodb";
 
 export const dynamic = "force-dynamic";
 
+export function generateStaticParams() {
+  return [];
+}
+
 const collectionName = "parties";
 
 type CustomerType = "Dealer" | "Retailer" | "Supplier" | "Other";

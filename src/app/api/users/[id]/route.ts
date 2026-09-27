@@ -13,6 +13,10 @@ import {
 
 export const dynamic = "force-dynamic";
 
+export function generateStaticParams() {
+  return [];
+}
+
 const collectionName = "users";
 
 function getObjectId(id: string) {
