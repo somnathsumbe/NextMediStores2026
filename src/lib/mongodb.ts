@@ -1,7 +1,7 @@
 import { MongoClient, type MongoClientOptions } from "mongodb";
 
 const uri = process.env.MONGODB_URI;
-const dbName = process.env.MONGODB_DB || "medistore";
+const dbName = process.env.MONGODB_DB || "medistores";
 
 if (!uri) {
   throw new Error("MONGODB_URI is not configured. Add it to .env.local on the server.");

@@ -69,19 +69,35 @@ function groupForPath(path: string) {
   return menuGroups.find((group) => group.links.some(([, href]) => pathMatches(path, href)))?.key ?? null;
 }
 
-function getStoredUserName() {
-  if (typeof window === "undefined") return "";
+type StoredUser = {
+  name?: string;
+  ownerName?: string;
+  businessName?: string;
+  email?: string;
+  role?: string;
+};
+
+function getStoredUser(): StoredUser | null {
+  if (typeof window === "undefined") return null;
   for (const storage of [window.localStorage, window.sessionStorage]) {
     const raw = storage.getItem("medistores_user");
     if (!raw) continue;
     try {
-      const user = JSON.parse(raw) as { name?: string };
-      return user.name?.trim() ?? "";
+      const user = JSON.parse(raw) as StoredUser;
+      return user;
     } catch {
-      return "";
+      return null;
     }
   }
-  return "";
+  return null;
+}
+
+function getDisplayName(user: StoredUser | null) {
+  return user?.ownerName?.trim() || user?.businessName?.trim() || user?.name?.trim() || user?.email?.trim() || "User";
+}
+
+function getDisplayRole(user: StoredUser | null) {
+  return user?.role ? String(user.role).toUpperCase() : "USER";
 }
 
 function getInitials(name: string) {
@@ -102,11 +118,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const activeGroup = groupForPath(path);
   const [openGroup, setOpenGroup] = useState<string | null>(activeGroup);
   const [auth, setAuth] = useState<boolean | null>(null);
-  const [userName, setUserName] = useState("");
+  const [currentUser, setCurrentUser] = useState<StoredUser | null>(null);
 
   useEffect(() => {
+    const user = getStoredUser();
     setAuth(authService.isAuthenticated());
-    setUserName(getStoredUserName());
+    setCurrentUser(user);
   }, [path]);
   useEffect(() => { if (activeGroup) setOpenGroup(activeGroup); }, [activeGroup]);
   useEffect(() => { if (auth === false) router.replace("/login"); }, [auth, router]);
@@ -127,19 +144,31 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="brand"><i className="bi bi-capsule-pill" />MediStores</div>
           <div className="nav-section">Navigation</div>
           <Link href="/dashboard" onClick={() => setOpen(false)} className={"side-link " + (pathMatches(path, "/dashboard") ? "active" : "")}><i className="bi bi-grid-1x2" /><span>Dashboard</span></Link>
-          {menuGroups.map((group) => (
-            <div key={group.key}>
-              <button type="button" className={"side-link w-100 border-0 bg-transparent text-start " + (activeGroup === group.key ? "active" : "")} onClick={() => setOpenGroup((current) => current === group.key ? null : group.key)} aria-expanded={openGroup === group.key} aria-controls={`${group.key}-submenu`}>
-                <i className={`bi ${group.icon}`} aria-hidden="true" /><span className="flex-grow-1">{group.label}</span><i className={`bi ${openGroup === group.key ? "bi-chevron-up" : "bi-chevron-down"}`} aria-hidden="true" />
-              </button>
-              {openGroup === group.key && <div id={`${group.key}-submenu`} className="ms-3 ps-2 border-start border-light-subtle">{group.links.map(([label, href, icon]) => <Link key={href} href={href} onClick={() => setOpen(false)} className={"side-link " + (pathMatches(path, href) ? "active" : "")}><i className={`bi ${icon}`} aria-hidden="true" /><span>{label}</span></Link>)}</div>}
-            </div>
-          ))}
+          {menuGroups.map((group) => {
+            const links = group.key === "settings" && currentUser?.role?.toUpperCase() !== "OWNER"
+              ? group.links.filter(([label]) => label !== "User Management")
+              : group.links;
+
+            return (
+              <div key={group.key}>
+                <button type="button" className={"side-link w-100 border-0 bg-transparent text-start " + (activeGroup === group.key ? "active" : "")} onClick={() => setOpenGroup((current) => current === group.key ? null : group.key)} aria-expanded={openGroup === group.key} aria-controls={`${group.key}-submenu`}>
+                  <i className={`bi ${group.icon}`} aria-hidden="true" /><span className="flex-grow-1">{group.label}</span><i className={`bi ${openGroup === group.key ? "bi-chevron-up" : "bi-chevron-down"}`} aria-hidden="true" />
+                </button>
+                {openGroup === group.key && <div id={`${group.key}-submenu`} className="ms-3 ps-2 border-start border-light-subtle">{links.map(([label, href, icon]) => <Link key={href} href={href} onClick={() => setOpen(false)} className={"side-link " + (pathMatches(path, href) ? "active" : "")}><i className={`bi ${icon}`} aria-hidden="true" /><span>{label}</span></Link>)}</div>}
+              </div>
+            );
+          })}
+          {currentUser?.role?.toUpperCase() === "OWNER" && (
+            <Link href="/user-management" onClick={() => setOpen(false)} className={"side-link " + (pathMatches(path, "/user-management") ? "active" : "")}>
+              <i className="bi bi-people-fill" aria-hidden="true" />
+              <span>User Management</span>
+            </Link>
+          )}
           <div className="nav-section">Account</div>
           <button className="side-link w-100 border-0 bg-transparent text-start" onClick={() => void handleLogout()} disabled={loggingOut}><i className="bi bi-box-arrow-right" aria-hidden="true" />{loggingOut ? "Signing Out..." : "Sign Out"}</button>
         </aside>
         <main className="main">
-          <header className="topbar" aria-label="Application header"><button aria-label="Open navigation menu" className="btn icon-btn mobile-toggle" onClick={() => setOpen(!open)}><i className="bi bi-list" /></button><div className="top-actions"><button className="icon-btn" aria-label="Notifications"><i className="bi bi-bell" aria-hidden="true" /></button>{userName && <div className="header-user-avatar" title={userName} aria-label={userName}>{getInitials(userName)}</div>}<button className="icon-btn" type="button" aria-label="Sign Out" title="Sign Out" onClick={() => void handleLogout()} disabled={loggingOut}><i className="bi bi-box-arrow-right" aria-hidden="true" /></button></div></header>
+          <header className="topbar" aria-label="Application header"><button aria-label="Open navigation menu" className="btn icon-btn mobile-toggle" onClick={() => setOpen(!open)}><i className="bi bi-list" /></button><div className="top-actions"><button className="icon-btn" aria-label="Notifications"><i className="bi bi-bell" aria-hidden="true" /></button>{currentUser ? <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}><div className="header-user-avatar" title={getDisplayName(currentUser)} aria-label={getDisplayName(currentUser)}>{getInitials(getDisplayName(currentUser))}</div><div style={{ display: "flex", flexDirection: "column", minWidth: 0, lineHeight: 1.15 }}><span style={{ fontSize: 12, fontWeight: 700, color: "#1d2433", whiteSpace: "nowrap" }}>{getDisplayName(currentUser)}</span><span style={{ fontSize: 10, color: "#737d90", textTransform: "uppercase", letterSpacing: ".04em", whiteSpace: "nowrap" }}>{getDisplayRole(currentUser)}</span></div></div> : null}<button className="icon-btn" type="button" aria-label="Sign Out" title="Sign Out" onClick={() => void handleLogout()} disabled={loggingOut}><i className="bi bi-box-arrow-right" aria-hidden="true" /></button></div></header>
           {children}
         </main>
         <footer className="footer">© 2026 MediStores · Medical distribution &amp; field sales management</footer>

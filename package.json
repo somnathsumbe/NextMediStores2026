@@ -9,6 +9,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-auth": "^1.7.6",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "jspdf": "^4.2.1",

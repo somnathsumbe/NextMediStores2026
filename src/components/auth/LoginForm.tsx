@@ -2,7 +2,6 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authService } from "@/services/auth/auth.service";
 import InstallPwaButton from "@/components/InstallPwaButton";
 
 export default function LoginForm() {
@@ -10,10 +9,29 @@ export default function LoginForm() {
   const [identifier, setIdentifier] = useState(""); const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false); const [error, setError] = useState(""); const [submitting, setSubmitting] = useState(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const data = new FormData(event.currentTarget); const nextIdentifier = String(data.get("identifier") ?? "").trim(); const nextPassword = String(data.get("password") ?? "");
+    event.preventDefault(); const nextIdentifier = identifier.trim(); const nextPassword = password;
     if (!nextIdentifier || !nextPassword) { setError("Enter your username or email and password."); return; }
     setSubmitting(true); setError("");
-    try { await authService.login({ identifier: nextIdentifier, password: nextPassword, rememberMe }); router.replace("/dashboard"); router.refresh(); }
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ identifier: nextIdentifier, password: nextPassword, rememberMe }),
+      });
+      const data = await response.json().catch(() => ({} as { message?: string; user?: Record<string, unknown> }));
+      if (!response.ok) { throw new Error(data.message ?? "Unable to sign in."); }
+      if (typeof window !== "undefined") {
+        const user = data.user ?? {};
+        const target = rememberMe ? window.localStorage : window.sessionStorage;
+        const other = rememberMe ? window.sessionStorage : window.localStorage;
+        target.setItem("medistores_auth", "1");
+        target.setItem("medistores_user", JSON.stringify(user));
+        other.removeItem("medistores_auth");
+        other.removeItem("medistores_user");
+      }
+      router.replace("/dashboard"); router.refresh();
+    }
     catch (exception) { setError(exception instanceof Error ? exception.message : "Unable to sign in."); }
     finally { setSubmitting(false); }
   }
