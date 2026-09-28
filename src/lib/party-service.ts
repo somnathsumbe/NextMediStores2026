@@ -1,67 +1,73 @@
-import partyData from "@/data/party.json";
-import { mockService } from "@/lib/mock-service";
 import type { Party } from "@/types/party";
 
-const COLLECTION = "partyDetails";
-const SOURCE_META = "partyDetailsMeta";
-type PartySeed = Omit<Party, "registeredGSTN" | "gstnNumber" | "id"> & { id?: string | number; registeredGSTN?: boolean; gstnNumber?: string; gstn?: string };
-const seedRecords: Party[] = partyData.records.map((record) => normalize({ ...record } as PartySeed));
-const sourceSignature = JSON.stringify(seedRecords);
+type PartyInput = Omit<Party, "id" | "_id">;
+type PartyResponse = { record?: Party | null; records?: Party[]; error?: string };
 
-type SourceMeta = { id: "source"; sourceSignature: string };
-
-function normalize(record: PartySeed): Party {
-  const registeredGSTN = Boolean(record.registeredGSTN ?? record.gstn);
-  return {
-    ...record,
-    id: String(record.id ?? ""),
-    customerType: record.customerType === "Retailer" || record.customerType === "Supplier" || record.customerType === "Other" ? record.customerType : "Dealer",
-    registeredGSTN,
-    gstnNumber: registeredGSTN ? String(record.gstnNumber ?? record.gstn ?? "").trim().toUpperCase() : "",
-    active: Boolean(record.active),
-    discount: Number(record.discount ?? 0),
-    creditLimit: Number(record.creditLimit ?? 0),
-    openingBalance: Number(record.openingBalance ?? 0),
-    closingBalance: Number(record.closingBalance ?? 0),
-    outstandingBalance: Number(record.outstandingBalance ?? 0),
-    creditLocked: Boolean(record.creditLocked),
-  };
+async function request<T extends PartyResponse>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    cache: "no-store",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options?.headers ?? {}),
+    },
+  });
+  const payload = await response.json().catch(() => ({})) as T;
+  if (!response.ok) throw new Error(payload.error || "Unable to process Party request.");
+  return payload;
 }
 
-function entries(): Party[] {
-  if (typeof window === "undefined") return structuredClone(seedRecords);
-  const stored = mockService.getOrSeed<Party>(COLLECTION, seedRecords);
-  const metadata = mockService.get<SourceMeta>(SOURCE_META)[0];
-  if (metadata?.sourceSignature !== sourceSignature) {
-    mockService.replace(COLLECTION, seedRecords);
-    mockService.replace(SOURCE_META, [{ id: "source", sourceSignature }]);
-    return mockService.get<Party>(COLLECTION);
-  }
-  return stored.map((record) => normalize(record));
+async function list(): Promise<Party[]> {
+  const payload = await request<{ records?: Party[] }>("/api/parties");
+  return payload.records ?? [];
 }
 
-function assertGstn(party: Pick<Party, "registeredGSTN" | "gstnNumber">, exceptId?: string) {
-  const gstnNumber = party.registeredGSTN ? party.gstnNumber.trim().toUpperCase() : "";
-  if (party.registeredGSTN && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstnNumber)) throw new Error("Enter a valid GSTN number.");
-  if (gstnNumber && entries().some((record) => String(record.id) !== String(exceptId) && record.gstnNumber.toUpperCase() === gstnNumber)) throw new Error("This GSTN number already exists.");
+function toPartyInput(party: Party): PartyInput {
+  const { id: _id, _id: mongoId, ...input } = party;
+  void _id;
+  void mongoId;
+  return input;
+}
+
+async function update(id: string, input: PartyInput): Promise<void> {
+  await request(`/api/parties/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
 }
 
 export const partyService = {
-  list(): Party[] { return entries(); },
-  cities(): string[] { return Array.from(new Set(partyData.cities)).sort((a, b) => a.localeCompare(b)); },
-  states(): string[] { return Array.from(new Set(partyData.states)).sort((a, b) => a.localeCompare(b)); },
-  schemes(): string[] { return Array.from(new Set(partyData.schemes)).sort((a, b) => a.localeCompare(b)); },
-  create(input: Omit<Party, "id">): Party {
-    assertGstn(input);
-    const record = normalize({ ...input, id: "0" });
-    return mockService.save(COLLECTION, record) as Party;
+  list,
+  async cities(): Promise<string[]> {
+    const parties = await list();
+    return Array.from(new Set(parties.map((party) => party.city).filter(Boolean))).sort((left, right) => left.localeCompare(right));
   },
-  update(id: string, input: Omit<Party, "id">): void {
-    if (!entries().some((record) => String(record.id) === String(id))) throw new Error("Party record not found.");
-    assertGstn(input, id);
-    mockService.update(COLLECTION, id, normalize({ ...input, id }));
+  async states(): Promise<string[]> {
+    const parties = await list();
+    return Array.from(new Set(parties.map((party) => party.state).filter(Boolean))).sort((left, right) => left.localeCompare(right));
   },
-  delete(id: string): void { if (!entries().some((record) => String(record.id) === String(id))) throw new Error("Party record not found."); mockService.remove(COLLECTION, id); },
-  toggleStatus(id: string): void { const record = entries().find((item) => String(item.id) === String(id)); if (record) mockService.update(COLLECTION, id, { active: !record.active }); },
-  toggleCreditLock(id: string): void { const record = entries().find((item) => String(item.id) === String(id)); if (record) mockService.update(COLLECTION, id, { creditLocked: !record.creditLocked }); },
+  async schemes(): Promise<string[]> {
+    const parties = await list();
+    return Array.from(new Set(parties.map((party) => party.scheme).filter(Boolean))).sort((left, right) => left.localeCompare(right));
+  },
+  async create(input: PartyInput): Promise<Party> {
+    const payload = await request<{ record?: Party | null }>("/api/parties", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    if (!payload.record) throw new Error("Party API did not return the created record.");
+    return payload.record;
+  },
+  update,
+  async delete(id: string): Promise<void> {
+    await request(`/api/parties/${encodeURIComponent(id)}`, { method: "DELETE" });
+  },
+  async toggleStatus(id: string): Promise<void> {
+    const party = (await list()).find((record) => String(record.id) === id);
+    if (party) await update(id, { ...toPartyInput(party), active: !party.active });
+  },
+  async toggleCreditLock(id: string): Promise<void> {
+    const party = (await list()).find((record) => String(record.id) === id);
+    if (party) await update(id, { ...toPartyInput(party), creditLocked: !party.creditLocked });
+  },
 };
