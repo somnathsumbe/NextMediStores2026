@@ -1,0 +1,98 @@
+.backdrop{position:fixed;inset:0;z-index:1500;display:grid;place-items:center;padding:20px;background:rgba(16,29,43,.58);backdrop-filter:blur(5px)}
+.actionDialog{width:min(100%,420px);padding:24px;border-radius:14px}
+.eyebrow{text-transform:uppercase;letter-spacing:.08em;color:#39816e;font-size:10px;font-weight:800}
+.aiShell{width:min(1180px,100%);height:min(92vh,960px);overflow:auto;background:#f4f7f6;border:1px solid rgba(255,255,255,.5);border-radius:16px;box-shadow:0 28px 90px rgba(5,22,32,.28)}
+.aiToolbar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px 22px;background:rgba(255,255,255,.96);border-bottom:1px solid #e4ebe8;backdrop-filter:blur(10px)}
+.brandMark{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;color:#fff;background:#146c5a;font-size:22px}
+.aiContent{max-width:1100px;margin:0 auto;padding:24px}
+.aiHero{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:18px;padding:24px 28px;border-radius:14px;color:#fff;background:linear-gradient(115deg,#113f42,#176d60 65%,#228a70);box-shadow:0 12px 28px rgba(18,83,70,.18)}
+.aiHero .eyebrow{color:#a5e1ca}
+.totalCard{min-width:270px;padding:17px 20px;border:1px solid rgba(255,255,255,.23);border-radius:12px;background:rgba(255,255,255,.12)}
+.totalLabel{font-size:11px;font-weight:800;letter-spacing:.11em;color:#c6eee0}
+.totalValue{font-size:30px;font-weight:800;line-height:1.15;white-space:nowrap}
+.totalHint{margin-top:5px;font-size:11px;color:#d2ece3}
+.infoCard,.productsCard,.summaryCard{height:100%;padding:18px;border:1px solid #e5ebe8;border-radius:12px;background:#fff;box-shadow:0 5px 16px rgba(28,55,45,.045)}
+.infoCard h3{margin:4px 0;font-size:17px;font-weight:750;color:#223c35}
+.infoCard>div:not(.cardHeading){font-size:13px;color:#586761}
+.cardHeading{display:flex;align-items:center;gap:8px;margin-bottom:14px;color:#285a4d;font-size:13px;font-weight:800}
+.cardHeading i{font-size:16px}
+.infoGrid{display:grid;grid-template-columns:minmax(100px,.7fr) 1fr;gap:8px 12px;margin:0;font-size:12px}
+.infoGrid dt{color:#78847f;font-weight:500}
+.infoGrid dd{margin:0;color:#263c35;font-weight:650}
+.productsCard{height:auto;margin-bottom:14px;padding-bottom:4px}
+.aiTable{width:100%;min-width:1500px;border-collapse:collapse;border:1px solid #dee2e6;font-size:11px;font-variant-numeric:tabular-nums}
+.aiTable th,.aiTable td{padding:8px 7px;border:1px solid #dee2e6;vertical-align:middle}
+.aiTable th{color:#52655c;background:#f2f6f3;font-size:9px;text-transform:uppercase;white-space:nowrap}
+.productNameCell{min-width:150px;white-space:normal}
+.quantityCell{text-align:center;font-variant-numeric:tabular-nums}
+.amountCell{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.amountCell small{display:block;color:#65766d;font-size:9px}
+.totalRow td{padding:9px 7px;border-top:2px solid #43564c;border-bottom:1px solid #aebbb3;background:#f2f6f3;font-weight:800;white-space:nowrap}
+.billBottomTable{width:100%;table-layout:fixed;border:1px solid #dee2e6;border-collapse:collapse;background:#fff;font-variant-numeric:tabular-nums}
+.billBottomTable td{border:1px solid #dee2e6}
+.signatureColumn{width:45%}
+.signatureCell{padding:12px;vertical-align:bottom;text-align:center}
+.signatureContent{display:flex;min-height:150px;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px;overflow:hidden}
+.signatureTitle{align-self:stretch;margin-bottom:auto;font-size:12px;font-weight:700;text-align:center}
+.signatureSpace{min-height:42px;flex:1 1 auto}
+.signatureContent>strong{max-width:100%;overflow-wrap:anywhere;font-size:10px}
+.signatureLine{width:min(220px,100%);height:1px;margin:3px auto 0;border-bottom:1px solid #212529}
+.signatureLabel{font-size:12px}
+.summaryRowCell{padding:0!important;vertical-align:middle}
+.summaryPairGrid,.summaryTripleGrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,.72fr);width:100%;border-collapse:collapse}
+.summaryPairGrid>div,.summaryTripleGrid>div{min-width:0;padding:7px 10px;border-bottom:1px solid #dee2e6;overflow-wrap:anywhere}
+.summaryPairGrid>div:nth-last-child(-n+2),.summaryTripleGrid>div:nth-last-child(-n+2){border-bottom:0}
+.summaryPairGrid>div:nth-child(even),.summaryTripleGrid>div:nth-child(even){border-left:1px solid #dee2e6;text-align:right;white-space:nowrap;font-weight:650}
+.summaryLabel{font-size:12px}
+.summaryValue{font-size:12px;font-variant-numeric:tabular-nums}
+.grandTotalRow{display:flex;min-height:48px;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-top:2px solid #617d6d;background:#e8f2ec;color:#174b37}
+.grandTotalRow strong:first-child{font-size:13px;font-weight:850}
+.grandTotalRow strong:last-child{font-size:17px;font-weight:900;text-align:right;white-space:nowrap}
+.summaryCard{height:auto;border-color:#dce9e3}
+.summaryRow{display:flex;justify-content:space-between;gap:16px;padding:7px 0;color:#66746d;font-size:13px}
+.summaryRow strong{color:#273d35}
+.summaryRule{height:1px;margin:8px 0;background:#dfe8e3}
+.summaryGrand{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#185b4a;font-weight:850}
+.summaryGrand span{font-size:12px;letter-spacing:.06em}
+.summaryGrand strong{font-size:21px;white-space:nowrap}
+.miniLabel{margin-bottom:4px;color:#7d8983;font-size:10px;font-weight:800;text-transform:uppercase}
+.printDocument{display:none;color:#202923;font-family:Arial,Helvetica,sans-serif;page:purchaseBill}
+.printHeader{display:flex;justify-content:space-between;gap:20px;padding-bottom:14px;border-bottom:2px solid #28594d}
+.printBrand{display:flex;gap:12px;align-items:flex-start}
+.printLogo{display:grid;place-items:center;width:40px;height:40px;border:1px solid #dce7e2;border-radius:10px;color:#1d6756;font-size:24px}
+.printBrand h1{margin:0 0 4px;color:#1d5548;font-size:20px}
+.printBrand p{margin:2px 0;color:#58635d;font-size:9px}
+.printHeading{text-align:right}
+.printHeading h2{margin:0 0 6px;color:#1d5548;font-size:18px}
+.printHeading strong,.printHeading div{display:block;margin:3px 0;font-size:10px}
+.printInfoGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}
+.printInfoGrid>div{padding:10px;border:1px solid #dfe5e1;border-radius:5px}
+.printInfoGrid h3{margin:0 0 7px;color:#28594d;font-size:11px;text-transform:uppercase}
+.printInfoGrid p{margin:3px 0;font-size:9px}
+.printTable{width:100%;border-collapse:collapse;border:1px solid #dee2e6;font-size:7.5px;font-variant-numeric:tabular-nums}
+.printTable th,.printTable td{padding:5px 4px;border:1px solid #dee2e6;vertical-align:top}
+.printTable th{color:#fff;background:#28594d;text-align:left;font-size:7px;text-transform:uppercase}
+.printTable tfoot .totalRow td{border-top:2px solid #43564c;border-bottom:1px solid #aebbb3;background:#f2f6f3;font-size:8px;font-weight:800}
+.billBottomTable{break-inside:avoid;page-break-inside:avoid}
+.billBottomTable .signatureContent{min-height:42mm}
+.billBottomTable .summaryPairGrid>div,.billBottomTable .summaryTripleGrid>div{padding:5px 8px;font-size:9px}
+.billBottomTable .grandTotalRow{min-height:15mm;padding:7px 9px}
+.billBottomTable .grandTotalRow strong:last-child{font-size:14px}
+.printNotes{margin-top:14px;padding:9px;border:1px solid #dee2e6;color:#424f48;font-size:9px;line-height:1.6;page-break-inside:avoid;break-inside:avoid}
+.printNotes strong{display:block;margin-bottom:3px;color:#28594d;text-transform:uppercase}
+.printFooter{margin-top:26px;padding-top:8px;border-top:1px solid #dfe5e1;color:#7b8580;font-size:8px;text-align:center}
+.serviceDocument{page:serviceBill}
+.serviceDocument .printTable th{background:#34475c}
+@media(max-width:767px){.backdrop{padding:0;place-items:stretch}.aiShell{width:100%;height:100dvh;border:0;border-radius:0}.aiToolbar{align-items:flex-start;padding:12px}.aiToolbar>div:last-child{flex-wrap:wrap;justify-content:flex-end}.aiContent{padding:14px}.aiHero{align-items:stretch;flex-direction:column;padding:20px}.totalCard{min-width:0}.totalValue{font-size:26px}.infoCard,.productsCard,.summaryCard{padding:14px}}
+@media(max-width:950px){.printInfoGrid{grid-template-columns:1fr 1fr}.printInfoGrid>div:last-child{grid-column:1/-1}}
+@page{size:A4;margin:12mm}
+@page purchaseBill{size:A4 landscape;margin:10mm}
+@page serviceBill{size:A4 portrait;margin:14mm}
+@media print{
+  .printDocument{display:block!important}
+  .printTable{display:table!important;width:100%!important;page-break-inside:auto}
+  .printTable thead{display:table-header-group}
+  .printTable tr{page-break-inside:avoid;break-inside:avoid}
+  .printInfoGrid,.billBottomTable,.printNotes,.printFooter{page-break-inside:avoid;break-inside:avoid}
+  .productsCard{padding:0;border:0;box-shadow:none}
+}

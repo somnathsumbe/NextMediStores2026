@@ -11,6 +11,8 @@ export function toSessionUser(user: Record<string, unknown>): SessionUser {
     email: String(user.email ?? ""),
     businessName: String(user.businessName ?? ""),
     mobile: String(user.mobile ?? ""),
+    gstNumber: String(user.gstNumber ?? ""),
+    drugLicenseNumber: String(user.drugLicenseNumber ?? ""),
     role: String(user.role ?? "USER").toUpperCase(),
     active: true,
     address: String(user.address ?? ""),

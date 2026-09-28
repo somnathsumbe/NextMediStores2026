@@ -48,4 +48,8 @@ export async function getMongoDb() {
   return connectedClient.db(dbName);
 }
 
+export async function getMongoClient() {
+  return getClientPromise();
+}
+
 export { dbName };

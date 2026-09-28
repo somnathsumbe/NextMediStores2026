@@ -20,6 +20,8 @@ export type SessionUser = {
   email: string;
   businessName: string;
   mobile: string;
+  gstNumber?: string;
+  drugLicenseNumber?: string;
   role: string;
   active: true;
   address: string;

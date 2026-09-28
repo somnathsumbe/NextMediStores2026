@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Party } from "@/types/party";
+import PurchasePrintActions from "@/components/purchase/PurchasePrintActions";
 
 type StatusFilter = "All" | string;
 type DatePreset = "All" | "Today" | "Last 7 Days" | "Last 30 Days" | "This Month" | "Custom Range";
@@ -485,6 +486,10 @@ export default function OrdersPage() {
                           }}>
                             <i className="bi bi-pencil" aria-hidden="true" />
                           </button>
+                          <PurchasePrintActions
+                            orderId={String(order.id)}
+                            supplier={parties.find((party) => String(party.id) === String(order.supplierId))}
+                          />
                           <button type="button" className="btn btn-sm btn-light text-danger" aria-label={`Delete ${order.voucher}`} onClick={() => handleDeleteOrder(order)}>
                             <i className="bi bi-trash3" aria-hidden="true" />
                           </button>

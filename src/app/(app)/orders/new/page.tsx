@@ -56,6 +56,14 @@ type PurchaseOrderItem = {
   discountPercentage: number;
   amount: number;
   holdSale?: boolean;
+  grossAmount?: number;
+  discountAmount?: number;
+  taxableAmount?: number;
+  cgstPercentage?: number;
+  sgstPercentage?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  taxAmount?: number;
 };
 
 type TransportRecord = {
@@ -189,6 +197,7 @@ function buildItemFromProduct(product: ProductRecord): PurchaseOrderItem {
     gst,
     discountPercentage: 0,
     amount: 0,
+    holdSale: false,
   };
   return { ...item, amount: calculatePurchaseItemAmount(item).amount };
 }
@@ -557,15 +566,20 @@ export default function OrdersNewPage() {
         return {
           ...itemToSave,
           unit: Number(itemToSave.unit),
-          amount: calculatePurchaseItemAmount(itemToSave).amount,
+          holdSale: Boolean(itemToSave.holdSale),
+          ...calculatePurchaseItemAmount(itemToSave),
         };
       }),
+      totalItems: summary.totalItems,
+      totalQuantity: summary.totalQuantity,
+      freeQuantity: summary.freeQuantity,
       subtotal: summary.subtotal,
       discount: summary.discount,
       taxableAmount: summary.taxableAmount,
       cgst: summary.cgst,
       sgst: summary.sgst,
       igst: summary.igst,
+      totalTax: summary.totalTax,
       roundOff: summary.roundOff,
       grandTotal: summary.grandTotal,
     };
@@ -930,6 +944,18 @@ export default function OrdersNewPage() {
                                       onChange={(event) => setEditingDraft((current) => current ? { ...current, manufactureDate: event.target.value } : current)}
                                     />
                                   </div>
+                                  <div className="col-md-6 col-xl-4 d-flex align-items-end">
+                                    <div className="form-check mb-2">
+                                      <input
+                                        id={`hold-sale-${String(item.id)}`}
+                                        className="form-check-input"
+                                        type="checkbox"
+                                        checked={Boolean(editingDraft.holdSale)}
+                                        onChange={(event) => setEditingDraft((current) => current ? { ...current, holdSale: event.target.checked } : current)}
+                                      />
+                                      <label className="form-check-label" htmlFor={`hold-sale-${String(item.id)}`}>Hold Sale</label>
+                                    </div>
+                                  </div>
                                   <div className="col-md-6 col-xl-4">
                                     <label className="form-label">Expiry Date <span className="text-danger">*</span></label>
                                     <input
@@ -1078,6 +1104,12 @@ export default function OrdersNewPage() {
                 </div>
               </div>
               <div className="col-6 col-lg-3">
+                <div className="border rounded-3 p-3 h-100 bg-light-subtle">
+                  <div className="small text-muted">Free Quantity</div>
+                  <div className="fs-5 fw-semibold mt-1">{summary.freeQuantity}</div>
+                </div>
+              </div>
+              <div className="col-6 col-lg-3">
                 <div className="border rounded-3 p-3 h-100">
                   <div className="small text-muted">Gross Amount</div>
                   <div className="fw-semibold mt-1">{formatCurrency(summary.subtotal)}</div>
@@ -1096,6 +1128,7 @@ export default function OrdersNewPage() {
               <div className="col-6 col-md-3"><div className="px-2 py-1"><div className="small text-muted">CGST</div><div className="fw-semibold">{formatCurrency(summary.cgst)}</div></div></div>
               <div className="col-6 col-md-3"><div className="px-2 py-1"><div className="small text-muted">SGST</div><div className="fw-semibold">{formatCurrency(summary.sgst)}</div></div></div>
               <div className="col-6 col-md-3"><div className="px-2 py-1"><div className="small text-muted">IGST</div><div className="fw-semibold">{formatCurrency(summary.igst)}</div></div></div>
+              <div className="col-6 col-md-3"><div className="px-2 py-1"><div className="small text-muted">Total Tax</div><div className="fw-semibold">{formatCurrency(summary.totalTax)}</div></div></div>
               <div className="col-6 col-md-3"><div className="px-2 py-1"><div className="small text-muted">Round Off</div><div className="fw-semibold">{formatCurrency(summary.roundOff)}</div></div></div>
             </div>
           </div>
@@ -1181,15 +1214,19 @@ export default function OrdersNewPage() {
                   <div className="col-md-6"><div className="small text-muted">Product Name</div><div className="fw-semibold">{viewProduct.productName}</div></div>
                   <div className="col-md-6"><div className="small text-muted">Manufacturer</div><div className="fw-semibold">{viewProduct.manufacturer || "—"}</div></div>
                   <div className="col-md-6"><div className="small text-muted">HSN</div><div className="fw-semibold">{viewProduct.hsn || "—"}</div></div>
+                  <div className="col-md-6"><div className="small text-muted">Package Description</div><div className="fw-semibold">{viewProduct.packageDescription || "—"}</div></div>
                   <div className="col-md-6"><div className="small text-muted">Batch Number</div><div className="fw-semibold">{viewProduct.batchNumber || "—"}</div></div>
                   <div className="col-md-6"><div className="small text-muted">Manufacture Date</div><div className="fw-semibold">{viewProduct.manufactureDate || "—"}</div></div>
                   <div className="col-md-6"><div className="small text-muted">Expiry Date</div><div className="fw-semibold">{viewProduct.expiryDate || "—"}</div></div>
                   <div className="col-md-6"><div className="small text-muted">Quantity</div><div className="fw-semibold">{viewProduct.quantity}</div></div>
+                  <div className="col-md-6"><div className="small text-muted">Discount Quantity</div><div className="fw-semibold">{viewProduct.freeQuantity ?? 0}</div></div>
                   <div className="col-md-6"><div className="small text-muted">Unit</div><div className="fw-semibold">{viewProduct.unit}</div></div>
+                  <div className="col-md-6"><div className="small text-muted">Scheme</div><div className="fw-semibold">{viewProduct.scheme || "No Scheme"}</div></div>
                   <div className="col-md-6"><div className="small text-muted">Sell Rate</div><div className="fw-semibold">{formatCurrency(viewProduct.sellRate)}</div></div>
                   <div className="col-md-6"><div className="small text-muted">MRP</div><div className="fw-semibold">{formatCurrency(viewProduct.mrp)}</div></div>
                   <div className="col-md-6"><div className="small text-muted">GST</div><div className="fw-semibold">{viewProduct.gst}%</div></div>
                   <div className="col-md-6"><div className="small text-muted">Discount %</div><div className="fw-semibold">{viewProduct.discountPercentage}%</div></div>
+                  <div className="col-md-6"><div className="small text-muted">Hold Sale</div><div className="fw-semibold">{viewProduct.holdSale ? "Yes" : "No"}</div></div>
                   <div className="col-md-6"><div className="small text-muted">Amount</div><div className="fw-semibold">{formatCurrency(viewProduct.amount)}</div></div>
                 </div>
               </div>

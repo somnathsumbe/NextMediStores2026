@@ -1,8 +1,39 @@
 import { NextResponse } from "next/server";
 import type { ObjectId, WithId } from "mongodb";
-import { getMongoDb } from "@/lib/mongodb";
+import { dbName, getMongoClient, getMongoDb } from "@/lib/mongodb";
+import { applyPurchaseStockChanges } from "@/lib/purchase-inventory";
 
 export const dynamic = "force-dynamic";
+
+type PurchaseItemDocument = {
+  id?: string | number;
+  productId?: string | number;
+  productName?: string;
+  manufacturer?: string;
+  hsn?: string;
+  packageDescription?: string;
+  batchNumber?: string;
+  manufactureDate?: string;
+  expiryDate?: string;
+  quantity?: number;
+  freeQuantity?: number;
+  unit?: number;
+  scheme?: string;
+  sellRate?: number;
+  mrp?: number;
+  gst?: number;
+  discountPercentage?: number;
+  holdSale?: boolean;
+  grossAmount?: number;
+  discountAmount?: number;
+  taxableAmount?: number;
+  cgstPercentage?: number;
+  sgstPercentage?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  taxAmount?: number;
+  amount?: number;
+};
 
 type PurchaseDocument = {
   _id?: ObjectId;
@@ -11,6 +42,20 @@ type PurchaseDocument = {
   purchaseOrderNumber?: string | number;
   orderDate?: string;
   status?: string;
+  items?: PurchaseItemDocument[];
+  stockApplied?: boolean;
+  totalItems?: number;
+  totalQuantity?: number;
+  freeQuantity?: number;
+  subtotal?: number;
+  discount?: number;
+  taxableAmount?: number;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
+  totalTax?: number;
+  roundOff?: number;
+  grandTotal?: number;
   [key: string]: unknown;
 };
 
@@ -47,19 +92,33 @@ export async function POST(request: Request) {
     }
     document.voucherNumber = voucherNumber;
 
-    const collection = (await getMongoDb()).collection<PurchaseDocument>("purchase");
-    const existing = await collection.findOne({ voucherNumber });
-    if (existing) {
-      return NextResponse.json({ error: "Voucher number must be unique." }, { status: 409 });
+    const client = await getMongoClient();
+    const db = client.db(dbName);
+    const collection = db.collection<PurchaseDocument>("purchase");
+    const session = client.startSession();
+    let saved: WithId<PurchaseDocument> | null = null;
+
+    try {
+      await session.withTransaction(async () => {
+        const existing = await collection.findOne({ voucherNumber }, { session });
+        if (existing) throw new Error("Voucher number must be unique.");
+
+        const completed = document.status === "Completed";
+        document.stockApplied = completed;
+        if (completed) await applyPurchaseStockChanges(db, session, [], document.items ?? []);
+
+        const result = await collection.insertOne(document, { session });
+        saved = await collection.findOne({ _id: result.insertedId }, { session });
+      });
+    } finally {
+      await session.endSession();
     }
 
-    const result = await collection.insertOne(document);
-    const saved = await collection.findOne({ _id: result.insertedId });
     return NextResponse.json({ record: saved ? serialize(saved) : null }, { status: 201 });
   } catch (error) {
     console.error("Purchase create failed:", error);
     const message = error instanceof Error ? error.message : "Unable to save purchase record.";
-    const status = /ECONNREFUSED|ENOTFOUND|querySrv|MongoDB Atlas connection failed/i.test(message) ? 503 : 500;
+    const status = /ECONNREFUSED|ENOTFOUND|querySrv|MongoDB Atlas connection failed/i.test(message) ? 503 : message.includes("already exists") || message.includes("must be unique") ? 409 : message.includes("quantity") || message.includes("product reference") || message.includes("Product ") ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }
