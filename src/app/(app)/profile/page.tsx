@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { mockService } from "@/lib/mock-service";
+import type { SessionUser } from "@/models/user.model";
 
 type ProfileData = {
 	fullName: string;
@@ -19,17 +19,6 @@ type ProfileData = {
 
 const emptyProfile: ProfileData = { fullName: "", businessName: "", mobile: "", email: "", address: "", city: "", state: "", pincode: "", accountType: "Retailer", photo: "" };
 
-function getSignedInUser() {
-	if (typeof window === "undefined") return null;
-	for (const storage of [window.localStorage, window.sessionStorage]) {
-		const raw = storage.getItem("medistores_user");
-		if (raw) {
-			try { return JSON.parse(raw) as { name?: string; email?: string; mobile?: string; role?: string; password?: string }; } catch { return null; }
-		}
-	}
-	return null;
-}
-
 function initials(name: string) { return name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "MS"; }
 
 export default function Profile() {
@@ -38,12 +27,18 @@ export default function Profile() {
 	const [passwordOpen, setPasswordOpen] = useState(false);
 	const [message, setMessage] = useState("");
 	const [passwordMessage, setPasswordMessage] = useState("");
+	const [user, setUser] = useState<SessionUser | null>(null);
 
 	useEffect(() => {
-		const user = getSignedInUser();
-		const saved = mockService.get<ProfileData>("profile")[0];
-		const defaults = { ...emptyProfile, fullName: user?.name ?? "Profile Owner", email: user?.email ?? "", mobile: user?.mobile ?? "", accountType: user?.role?.toLowerCase().includes("dealer") ? "Dealer" as const : "Retailer" as const };
-		setForm({ ...defaults, ...saved });
+		let active = true;
+		void fetch("/api/auth/session", { credentials: "include", cache: "no-store" }).then(async (response) => {
+			if (!response.ok) throw new Error("Unable to load profile.");
+			const payload = await response.json() as { user: SessionUser };
+			if (!active) return;
+			setUser(payload.user);
+			setForm({ ...emptyProfile, fullName: payload.user.name, businessName: payload.user.businessName, mobile: payload.user.mobile, email: payload.user.email, address: payload.user.address, city: payload.user.city, state: payload.user.state, pincode: payload.user.pincode, accountType: payload.user.role.toLowerCase().includes("dealer") ? "Dealer" : "Retailer" });
+		}).catch(() => { if (active) setMessage("Unable to load profile details."); });
+		return () => { active = false; };
 	}, []);
 
 	function update(field: keyof ProfileData, value: string) { setForm((current) => ({ ...current, [field]: value })); setMessage(""); }
@@ -56,17 +51,26 @@ export default function Profile() {
 		reader.readAsDataURL(file);
 	}
 
-	function saveProfile(event: FormEvent<HTMLFormElement>) { event.preventDefault(); mockService.replace("profile", [form]); setMessage("Profile changes saved successfully."); }
+	async function saveProfile(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault(); setMessage("");
+		try {
+			const response = await fetch("/api/auth/session", { method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ name: form.fullName, ownerName: form.fullName, businessName: form.businessName, mobile: form.mobile, email: form.email, address: form.address, city: form.city, state: form.state, pincode: form.pincode }) });
+			const payload = await response.json().catch(() => ({} as { message?: string; user?: SessionUser }));
+			if (!response.ok || !payload.user) throw new Error(payload.message ?? "Unable to save profile.");
+			setUser(payload.user); setMessage("Profile changes saved successfully.");
+		} catch (exception) { setMessage(exception instanceof Error ? exception.message : "Unable to save profile."); }
+	}
 
 	function savePassword(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
 		setPasswordMessage("");
-		const user = getSignedInUser();
-		if (!user?.password || user.password !== passwords.current) { setPasswordMessage("Current password is incorrect."); return; }
 		if (passwords.next.length < 8) { setPasswordMessage("New password must be at least 8 characters."); return; }
 		if (passwords.next !== passwords.confirm) { setPasswordMessage("New password and confirmation must match."); return; }
-		for (const storage of [window.localStorage, window.sessionStorage]) { const raw = storage.getItem("medistores_user"); if (raw) storage.setItem("medistores_user", JSON.stringify({ ...JSON.parse(raw), password: passwords.next })); }
-		setPasswords({ current: "", next: "", confirm: "" }); setPasswordOpen(false); setMessage("Password changed successfully.");
+		void fetch("/api/auth/session", { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ currentPassword: passwords.current, newPassword: passwords.next }) }).then(async (response) => {
+			const payload = await response.json().catch(() => ({} as { message?: string }));
+			if (!response.ok) throw new Error(payload.message ?? "Unable to update password.");
+			setPasswords({ current: "", next: "", confirm: "" }); setPasswordOpen(false); setPasswordMessage(""); setMessage("Password changed successfully.");
+		}).catch((exception) => setPasswordMessage(exception instanceof Error ? exception.message : "Unable to update password."));
 	}
 
 	return (

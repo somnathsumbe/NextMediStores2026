@@ -3,10 +3,6 @@
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { mockService } from "@/lib/mock-service";
-import { partyService } from "@/lib/party-service";
-import transportData from "@/data/transport-details.json";
-import schemesData from "@/data/schemes.json";
 import type { Party } from "@/types/party";
 import { calculatePurchaseItemAmount, calculatePurchaseOrderSummary } from "@/utils/purchase-order";
 
@@ -97,7 +93,6 @@ type FormErrors = Record<string, string>;
 const paymentMethods = ["Cash", "Cheque", "Bank Transfer", "UPI", "Other"];
 const paymentTermsOptions = ["Immediate", "Net 7 Days", "Net 15 Days", "Net 30 Days", "Credit"];
 const purchaseTypes = ["Cash Purchase", "Credit Purchase", "Purchase Return"];
-const schemes = schemesData as Array<{ id: number; name: string }>;
 
 function formatCurrency(value: number | string | null | undefined) {
   const numeric = Number(value ?? 0);
@@ -133,12 +128,6 @@ function storedVoucherNumber(order: any) {
   if (Number.isFinite(value)) return value;
   const legacyMatch = String(order.purchaseOrderNumber ?? order.id ?? "").match(/(\d+)$/);
   return legacyMatch ? Number(legacyMatch[1]) : Number.NaN;
-}
-
-function nextVoucherNumber() {
-  const existing = mockService.get<any>("purchaseOrders");
-  const numbers = existing.map(storedVoucherNumber).filter((value) => Number.isFinite(value));
-  return (numbers.length ? Math.max(...numbers) : 0) + 1;
 }
 
 function formatLongDate(value: string) {
@@ -204,10 +193,10 @@ function buildItemFromProduct(product: ProductRecord): PurchaseOrderItem {
   return { ...item, amount: calculatePurchaseItemAmount(item).amount };
 }
 
-function emptyOrder(): PurchaseOrder {
+function emptyOrder(voucherNumber = 1): PurchaseOrder {
   return {
     id: `PO-${Date.now()}`,
-    voucherNumber: nextVoucherNumber(),
+    voucherNumber,
     orderDate: todayISO(),
     supplierId: "",
     purchaseType: "Cash Purchase",
@@ -252,9 +241,11 @@ export default function OrdersNewPage() {
 
   const [products, setProducts] = useState<ProductRecord[]>([]);
   const [suppliers, setSuppliers] = useState<Party[]>([]);
+  const [existingOrders, setExistingOrders] = useState<PurchaseOrder[]>([]);
   const [supplierSearch, setSupplierSearch] = useState("");
   const [supplierDropdownOpen, setSupplierDropdownOpen] = useState(false);
   const [transporters, setTransporters] = useState<TransportRecord[]>([]);
+  const [schemes, setSchemes] = useState<string[]>(["No Scheme"]);
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder>(emptyOrder());
   const [showSelector, setShowSelector] = useState(false);
   const [selectorQuery, setSelectorQuery] = useState("");
@@ -267,12 +258,48 @@ export default function OrdersNewPage() {
   const [headerErrors, setHeaderErrors] = useState<FormErrors>({});
   const [rowErrors, setRowErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    const allProducts = mockService.get<any>("products").map(normalizeProduct);
-    setProducts(allProducts);
-    setSuppliers(partyService.list().filter((party) => party.customerType === "Retailer" && party.active));
-    setTransporters(transportData.records as TransportRecord[]);
+    const loadPurchaseData = async () => {
+      try {
+        const responses = await Promise.all([
+          fetch("/api/products", { cache: "no-store" }),
+          fetch("/api/parties", { cache: "no-store" }),
+          fetch("/api/transport", { cache: "no-store" }),
+          fetch("/api/purchase", { cache: "no-store" }),
+        ]);
+        const payloads = await Promise.all(responses.map(async (response) => {
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.error || "Unable to load purchase data.");
+          return payload;
+        }));
+        const [productsPayload, partiesPayload, transportPayload, purchasePayload] = payloads;
+        const records = Array.isArray(purchasePayload.records) ? purchasePayload.records : [];
+        const parties = Array.isArray(partiesPayload.records) ? partiesPayload.records as Party[] : [];
+        const suppliers = parties.filter((party) => party.customerType === "Retailer" && party.active);
+        const voucherNumbers = records.map(storedVoucherNumber).filter((value: number) => Number.isFinite(value));
+
+        setProducts((Array.isArray(productsPayload.records) ? productsPayload.records : []).map(normalizeProduct));
+        setSuppliers(suppliers);
+        setTransporters((Array.isArray(transportPayload.records) ? transportPayload.records : [])
+          .filter((record: TransportRecord) => record.status !== "Inactive")
+          .map((record: TransportRecord) => ({ ...record, id: String(record.id) })));
+        setExistingOrders(records);
+        setSchemes(Array.from(new Set(["No Scheme", ...parties.map((party) => party.scheme.trim()).filter(Boolean)])));
+        setPurchaseOrder((current) => ({
+          ...current,
+          voucherNumber: (voucherNumbers.length ? Math.max(...voucherNumbers) : 0) + 1,
+        }));
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : "Unable to load purchase data.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadPurchaseData();
   }, []);
 
   useEffect(() => () => {
@@ -474,7 +501,6 @@ export default function OrdersNewPage() {
 
   const validateHeader = () => {
     const errors: FormErrors = {};
-    const existingOrders = mockService.get<any>("purchaseOrders");
     if (!Number.isInteger(Number(purchaseOrder.voucherNumber)) || Number(purchaseOrder.voucherNumber) <= 0) errors.voucherNumber = "Voucher number is required.";
     if (existingOrders.some((order) => storedVoucherNumber(order) === Number(purchaseOrder.voucherNumber))) errors.voucherNumber = "Voucher number must be unique.";
     if (!purchaseOrder.orderDate) errors.orderDate = "Order date is required.";
@@ -506,7 +532,7 @@ export default function OrdersNewPage() {
     return errors;
   };
 
-  const handleSavePurchaseOrder = (status: "Draft" | "Completed") => {
+  const handleSavePurchaseOrder = async (status: "Draft" | "Completed") => {
     const errors = validateHeader();
     setHeaderErrors(errors);
 
@@ -537,10 +563,22 @@ export default function OrdersNewPage() {
       grandTotal: summary.grandTotal,
     };
 
-    mockService.save("purchaseOrders", payload);
-    setIsSaving(false);
-    showToast("success", status === "Draft" ? "Purchase Order saved as draft" : "Purchase Order created successfully");
-    router.push("/orders");
+    try {
+      const response = await fetch("/api/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Unable to save purchase order.");
+      setExistingOrders((current) => [result.record, ...current]);
+      showToast("success", status === "Draft" ? "Purchase Order saved as draft" : "Purchase Order created successfully");
+      router.push("/orders");
+    } catch (error) {
+      showToast("error", error instanceof Error ? error.message : "Unable to save purchase order.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -559,6 +597,7 @@ export default function OrdersNewPage() {
           </div>
         </div>
 
+        {loadError && <div className="alert alert-danger shadow-sm mb-4" role="alert">{loadError}</div>}
         {toast && (
           <div className={`alert ${toast.type === "success" ? "alert-success" : "alert-danger"} shadow-sm mb-4 d-flex align-items-center`} role="status">
             <i className={`bi ${toast.type === "success" ? "bi-check-circle" : "bi-exclamation-triangle"} me-2`} aria-hidden="true" />
@@ -905,7 +944,7 @@ export default function OrdersNewPage() {
                                   <div className="col-md-6 col-xl-3">
                                     <label className="form-label">Scheme</label>
                                     <select className="form-select" value={editingDraft.scheme} onChange={(event) => setEditingDraft((current) => current ? { ...current, scheme: event.target.value } : current)}>
-                                      {schemes.map((scheme) => <option key={scheme.id} value={scheme.name}>{scheme.name}</option>)}
+                                      {schemes.map((scheme) => <option key={scheme} value={scheme}>{scheme}</option>)}
                                     </select>
                                   </div>
                                   <div className="col-md-6 col-xl-3">
@@ -1037,10 +1076,10 @@ export default function OrdersNewPage() {
 
         <div className="d-flex justify-content-end gap-2 mb-5">
           <Link href="/orders" className="btn btn-outline-secondary">Cancel</Link>
-          <button type="button" className="btn btn-outline-primary" onClick={() => handleSavePurchaseOrder("Draft")} disabled={isSaving}>
+          <button type="button" className="btn btn-outline-primary" onClick={() => void handleSavePurchaseOrder("Draft")} disabled={isSaving || isLoading || Boolean(loadError)}>
             {isSaving ? "Saving..." : "Save as Draft"}
           </button>
-          <button type="button" className="btn btn-primary" onClick={() => handleSavePurchaseOrder("Completed")} disabled={isSaving}>
+          <button type="button" className="btn btn-primary" onClick={() => void handleSavePurchaseOrder("Completed")} disabled={isSaving || isLoading || Boolean(loadError)}>
                 {isSaving ? "Saving..." : "Complete Purchase Order"}
           </button>
         </div>

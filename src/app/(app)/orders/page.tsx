@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { mockService } from "@/lib/mock-service";
-import { partyService } from "@/lib/party-service";
+import type { Party } from "@/types/party";
 
 type StatusFilter = "All" | string;
 type DatePreset = "All" | "Today" | "Last 7 Days" | "Last 30 Days" | "This Month" | "Custom Range";
@@ -89,15 +88,43 @@ export default function OrdersPage() {
   const [sortBy, setSortBy] = useState<SortKey>("latest");
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [viewOrder, setViewOrder] = useState<any | null>(null);
   const [editOrder, setEditOrder] = useState<any | null>(null);
   const [editStatus, setEditStatus] = useState<StatusFilter>("All");
 
+  const loadData = async () => {
+    setIsLoading(true);
+    setLoadError("");
+    try {
+      const [purchaseResponse, partyResponse] = await Promise.all([
+        fetch("/api/purchase", { cache: "no-store" }),
+        fetch("/api/parties", { cache: "no-store" }),
+      ]);
+      const [purchasePayload, partyPayload] = await Promise.all([
+        purchaseResponse.json().catch(() => ({})),
+        partyResponse.json().catch(() => ({})),
+      ]);
+      if (!purchaseResponse.ok) throw new Error(purchasePayload.error || "Unable to load purchase records.");
+      if (!partyResponse.ok) throw new Error(partyPayload.error || "Unable to load suppliers.");
+      setPurchaseOrders(Array.isArray(purchasePayload.records) ? purchasePayload.records : []);
+      setParties(Array.isArray(partyPayload.records) ? partyPayload.records : []);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Unable to load purchase records.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => { void loadData(); }, []);
+
   const allOrders = useMemo(
     () =>
-      mockService.get<any>("purchaseOrders").map((order, index) => {
-        const supplier = partyService.list().find((party) => String(party.id) === String(order.supplierId));
+      purchaseOrders.map((order, index) => {
+        const supplier = parties.find((party) => String(party.id) === String(order.supplierId));
         return {
           ...order,
           voucher: order.voucherNumber ?? order.purchaseOrderNumber ?? order.id,
@@ -110,7 +137,7 @@ export default function OrdersPage() {
           paymentMethod: order.paymentMethod ?? ["UPI", "Cash", "Bank", "Card", "NEFT"][index % 5],
         };
       }),
-    [refreshKey],
+    [parties, purchaseOrders],
   );
 
   const customerOptions = useMemo(
@@ -204,22 +231,38 @@ export default function OrdersPage() {
     setPage(1);
   };
 
-  const handleDeleteOrder = (order: any) => {
+  const handleDeleteOrder = async (order: any) => {
     if (!window.confirm(`Delete purchase order ${order.voucher} for ${order.supplier}?`)) {
       return;
     }
 
-    mockService.remove("purchaseOrders", order.id);
-    setRefreshKey((value) => value + 1);
-    setPage(1);
+    try {
+      const response = await fetch(`/api/purchase/${encodeURIComponent(String(order.id))}`, { method: "DELETE" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Unable to delete purchase order.");
+      await loadData();
+      setPage(1);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Unable to delete purchase order.");
+    }
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editOrder) return;
 
-    mockService.update("purchaseOrders", editOrder.id, { status: editStatus });
-    setEditOrder(null);
-    setRefreshKey((value) => value + 1);
+    try {
+      const response = await fetch(`/api/purchase/${encodeURIComponent(String(editOrder.id))}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: editStatus }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Unable to update purchase order.");
+      setEditOrder(null);
+      await loadData();
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Unable to update purchase order.");
+    }
   };
 
   return (
@@ -240,6 +283,8 @@ export default function OrdersPage() {
             <i className="bi bi-plus-lg me-2" aria-hidden="true" />New Purchase Order
           </Link>
         </div>
+
+        {loadError && <div className="alert alert-danger shadow-sm" role="alert">{loadError}</div>}
 
         <div className="row g-3 mb-4">
           {summaryCards.map((card) => (
@@ -415,7 +460,9 @@ export default function OrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleOrders.length > 0 ? (
+                {isLoading ? (
+                  <tr><td colSpan={10} className="text-center py-4 text-muted">Loading purchase orders...</td></tr>
+                ) : visibleOrders.length > 0 ? (
                   visibleOrders.map((order) => (
                     <tr key={order.id}>
                       <td className="fw-semibold">{order.voucher}</td>

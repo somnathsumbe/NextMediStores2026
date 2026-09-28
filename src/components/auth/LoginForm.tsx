@@ -21,15 +21,6 @@ export default function LoginForm() {
       });
       const data = await response.json().catch(() => ({} as { message?: string; user?: Record<string, unknown> }));
       if (!response.ok) { throw new Error(data.message ?? "Unable to sign in."); }
-      if (typeof window !== "undefined") {
-        const user = data.user ?? {};
-        const target = rememberMe ? window.localStorage : window.sessionStorage;
-        const other = rememberMe ? window.sessionStorage : window.localStorage;
-        target.setItem("medistores_auth", "1");
-        target.setItem("medistores_user", JSON.stringify(user));
-        other.removeItem("medistores_auth");
-        other.removeItem("medistores_user");
-      }
       router.replace("/dashboard"); router.refresh();
     }
     catch (exception) { setError(exception instanceof Error ? exception.message : "Unable to sign in."); }

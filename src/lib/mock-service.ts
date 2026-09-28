@@ -1,79 +1,32 @@
 export type AnyRecord = Record<string, any>;
 const KEY = "medistores_db";
-import seedData from "../data/products.json";
 
-const seed = Array.isArray(seedData) ? { products: seedData } : (seedData ?? {});
-const productSourceSignature = JSON.stringify(Array.isArray(seed.products) ? seed.products : []);
 let cachedDb: AnyRecord | null = null;
 let cachedRaw: string | null = null;
 
-function syncSeedData(db: AnyRecord): AnyRecord {
-  const next: AnyRecord = { ...seed, ...db };
-
-  if (next.productSourceSignature !== productSourceSignature) {
-    next.products = structuredClone(seed.products ?? []);
-    next.productSourceSignature = productSourceSignature;
-    return next;
-  }
-
-  const seededProducts = Array.isArray(seed.products) ? seed.products : [];
-  const currentProducts = Array.isArray(next.products) ? next.products : [];
-
-  const productsById = new Map<number, AnyRecord>();
-  seededProducts.forEach((product: AnyRecord) => {
-    productsById.set(Number(product.id), structuredClone(product));
-  });
-  currentProducts.forEach((product: AnyRecord) => {
-    const id = Number(product.id);
-    const seedProduct = productsById.get(id);
-    productsById.set(id, seedProduct ? { ...seedProduct, ...structuredClone(product) } : structuredClone(product));
-  });
-  next.products = Array.from(productsById.values());
-
-  next.products = next.products.map((product: AnyRecord) => {
-    const normalizedProduct = { ...product };
-    const legacyPtrKey = ["p", "tr"].join("");
-    const legacySellRateKey = ["sell", "Rate"].join("");
-    if (normalizedProduct.ptrSellRate === undefined) {
-      normalizedProduct.ptrSellRate = normalizedProduct[legacyPtrKey] ?? normalizedProduct[legacySellRateKey] ?? normalizedProduct.mrp ?? 0;
-    }
-    delete normalizedProduct[legacyPtrKey];
-    delete normalizedProduct[legacySellRateKey];
-    return normalizedProduct;
-  });
-
-  return next;
-}
-
 function readDb(): AnyRecord {
-  const normalizedSeed = Array.isArray(seedData) ? { products: seedData } : (seedData ?? {});
-  if (typeof window === "undefined") return structuredClone(normalizedSeed);
+  if (typeof window === "undefined") return {};
   const raw = localStorage.getItem(KEY);
   if (raw === cachedRaw && cachedDb) return cachedDb;
   if (!raw) {
-    const serializedSeed = JSON.stringify(syncSeedData(normalizedSeed));
-    localStorage.setItem(KEY, serializedSeed);
-    cachedRaw = serializedSeed;
-    cachedDb = structuredClone(normalizedSeed);
+    cachedRaw = JSON.stringify({});
+    cachedDb = {};
     return cachedDb;
   }
+
   try {
     const parsed = JSON.parse(raw);
-    const normalizedParsed = Array.isArray(parsed) ? { products: parsed } : (parsed ?? {});
-    const synced = syncSeedData(normalizedParsed);
-    const serialized = JSON.stringify(synced);
-    if (serialized !== raw) {
-      localStorage.setItem(KEY, serialized);
-    }
-    cachedRaw = serialized;
-    cachedDb = synced;
-    return cachedDb;
+    const normalized = parsed && typeof parsed === "object" ? parsed : {};
+    cachedRaw = JSON.stringify(normalized);
+    cachedDb = normalized;
+    return normalized;
   } catch {
     cachedRaw = null;
-    cachedDb = structuredClone(normalizedSeed);
+    cachedDb = {};
     return cachedDb;
   }
 }
+
 function writeDb(db: AnyRecord) {
   const serialized = JSON.stringify(db);
   localStorage.setItem(KEY, serialized);
@@ -82,8 +35,8 @@ function writeDb(db: AnyRecord) {
 }
 
 export const mockService = {
-  get<T=AnyRecord[]>(collection:string): T[] { return (readDb()[collection] || []) as T[]; },
-  getOrSeed<T=AnyRecord[]>(collection: string, seedItems: T[]): T[] {
+  get<T = AnyRecord[]>(collection: string): T[] { return (readDb()[collection] || []) as T[]; },
+  getOrSeed<T = AnyRecord[]>(collection: string, seedItems: T[]): T[] {
     const db = readDb();
     if (!Array.isArray(db[collection])) {
       db[collection] = structuredClone(seedItems);
@@ -91,23 +44,37 @@ export const mockService = {
     }
     return db[collection] as T[];
   },
-  getMany<T=AnyRecord[]>(collections: string[]): Record<string, T[]> {
+  getMany<T = AnyRecord[]>(collections: string[]): Record<string, T[]> {
     const db = readDb();
     return Object.fromEntries(collections.map((collection) => [collection, (db[collection] || []) as T[]]));
   },
-  save<T extends AnyRecord>(collection:string, item:T) {
-    const db=readDb(); const list=db[collection] || [];
-    const nextId = list.reduce((m:any,x:any)=>Math.max(m,Number(x.id)||0),0)+1;
-    const value={...item,id:item.id ?? nextId}; db[collection]=[value,...list]; writeDb(db); return value;
+  save<T extends AnyRecord>(collection: string, item: T) {
+    const db = readDb();
+    const list = Array.isArray(db[collection]) ? db[collection] : [];
+    const nextId = list.reduce((max: number, entry: any) => Math.max(max, Number(entry.id) || 0), 0) + 1;
+    const value = { ...item, id: item.id ?? nextId };
+    db[collection] = [value, ...list];
+    writeDb(db);
+    return value;
   },
-  update<T extends AnyRecord>(collection:string,id:any,patch:Partial<T>) {
-    const db=readDb(); db[collection]=(db[collection]||[]).map((x:any)=>x.id===id?{...x,...patch}:x); writeDb(db);
+  update<T extends AnyRecord>(collection: string, id: any, patch: Partial<T>) {
+    const db = readDb();
+    db[collection] = (db[collection] || []).map((entry: any) => entry.id === id ? { ...entry, ...patch } : entry);
+    writeDb(db);
   },
   replace<T extends AnyRecord>(collection: string, items: T[]) {
-    const db = readDb(); db[collection] = structuredClone(items); writeDb(db);
+    const db = readDb();
+    db[collection] = structuredClone(items);
+    writeDb(db);
   },
-  remove(collection:string,id:any) {
-    const db=readDb(); db[collection]=(db[collection]||[]).filter((x:any)=>x.id!==id); writeDb(db);
+  remove(collection: string, id: any) {
+    const db = readDb();
+    db[collection] = (db[collection] || []).filter((entry: any) => entry.id !== id);
+    writeDb(db);
   },
-  reset() { localStorage.removeItem(KEY); cachedRaw = null; cachedDb = null; }
+  reset() {
+    localStorage.removeItem(KEY);
+    cachedRaw = null;
+    cachedDb = null;
+  },
 };

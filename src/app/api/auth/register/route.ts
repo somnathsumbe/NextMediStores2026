@@ -25,6 +25,7 @@ export async function POST(request: Request) {
       ownerName?: string;
       mobile?: string;
       email?: string;
+      username?: string;
       password?: string;
       confirmPassword?: string;
       drugLicenseNumber?: string;
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Please complete all fields and use a password with at least 8 characters." }, { status: 400 });
     }
 
-    if (data.confirmPassword && data.password !== data.confirmPassword) {
+    if (data.password !== data.confirmPassword) {
       return NextResponse.json({ message: "Passwords do not match." }, { status: 400 });
     }
 
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
     const ownerName = String(data.ownerName ?? "").trim();
     const mobile = String(data.mobile ?? "").trim();
     const email = String(data.email ?? "").trim().toLowerCase();
+    const requestedUsername = String(data.username ?? "").trim().toLowerCase();
     const drugLicenseNumber = String(data.drugLicenseNumber ?? "").trim();
     const gstNumber = String(data.gstNumber ?? "").trim();
     const address = String(data.address ?? "").trim();
@@ -79,21 +81,26 @@ export async function POST(request: Request) {
     const database = await getMongoDb();
     const users = database.collection("users");
 
+    const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const existingUser = await users.findOne({
       $or: [
-        { email: { $regex: `^${email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" } },
-        { mobile: { $regex: `^${mobile.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" } },
+        { email: { $regex: `^${escapeRegex(email)}$`, $options: "i" } },
+        { mobile: { $regex: `^${escapeRegex(mobile)}$`, $options: "i" } },
+        ...(requestedUsername ? [{ username: { $regex: `^${escapeRegex(requestedUsername)}$`, $options: "i" } }] : []),
       ],
     });
 
     if (existingUser) {
-      return NextResponse.json({ message: "An account already exists with this email or mobile number." }, { status: 409 });
+      return NextResponse.json({ message: "An account already exists with this email, username, or mobile number." }, { status: 409 });
     }
 
-    const baseUsername = toAlphaNumeric(ownerName || businessName || email.split("@")[0]);
+    const baseUsername = requestedUsername || toAlphaNumeric(ownerName || businessName || email.split("@")[0]);
     let username = baseUsername;
     let usernameSuffix = 1;
-    while (await users.findOne({ username })) {
+    while (await users.findOne({ username: { $regex: `^${escapeRegex(username)}$`, $options: "i" } })) {
+      if (requestedUsername) {
+        return NextResponse.json({ message: "That username is already in use." }, { status: 409 });
+      }
       username = `${baseUsername}-${usernameSuffix}`;
       usernameSuffix += 1;
     }
@@ -127,9 +134,14 @@ export async function POST(request: Request) {
         message: "Registration successful.",
         user: {
           id: String(result.insertedId),
+          name: ownerName,
+          ownerName,
+          businessName,
           username,
           email,
-          role,
+          mobile,
+          role: role.toUpperCase(),
+          active: true,
         },
       },
       { status: 201 },

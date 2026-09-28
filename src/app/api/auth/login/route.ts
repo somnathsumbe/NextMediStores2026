@@ -1,6 +1,22 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getMongoDb } from "@/lib/mongodb";
+import { toSessionUser } from "@/lib/auth-session";
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function findUserByIdentifier(identifier: string) {
+  const normalizedIdentifier = identifier.trim().toLowerCase();
+  const database = await getMongoDb();
+  return database.collection("users").findOne({
+    $or: [
+      { email: { $regex: `^${escapeRegex(normalizedIdentifier)}$`, $options: "i" } },
+      { username: { $regex: `^${escapeRegex(normalizedIdentifier)}$`, $options: "i" } },
+    ],
+  });
+}
 
 export async function POST(request: Request) {
   try {
@@ -18,41 +34,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: "Email and password are required." }, { status: 400 });
     }
 
-    const normalizedIdentifier = identifier.toLowerCase();
-
-    const database = await getMongoDb();
-    const users = database.collection("users");
-    const user = await users.findOne({ email: normalizedIdentifier });
-
+    const user = await findUserByIdentifier(identifier);
     if (!user) {
       return NextResponse.json({ success: false, message: "Invalid username or password." }, { status: 401 });
     }
 
-    if (!user.active) {
+    if (user.active !== true) {
       return NextResponse.json({ success: false, message: "Your account is inactive. Please contact the administrator." }, { status: 403 });
     }
 
     const passwordHash = typeof user.passwordHash === "string" ? user.passwordHash : "";
-    if (!passwordHash || !/^\$2[aby]\$/.test(passwordHash)) {
+    if (!/^\$2[aby]\$/.test(passwordHash) || !await bcrypt.compare(password, passwordHash)) {
       return NextResponse.json({ success: false, message: "Invalid username or password." }, { status: 401 });
     }
 
-    const validPassword = await bcrypt.compare(password, passwordHash);
-
-    if (!validPassword) {
-      return NextResponse.json({ success: false, message: "Invalid username or password." }, { status: 401 });
-    }
-
-    const safeUser = {
-      id: String(user._id),
-      businessName: user.businessName,
-      ownerName: user.ownerName,
-      email: user.email,
-      mobile: user.mobile,
-      role: user.role,
-      active: user.active,
-      createdAt: user.createdAt,
-    };
+    const safeUser = toSessionUser(user);
 
     const response = NextResponse.json({
       success: true,
@@ -60,7 +56,7 @@ export async function POST(request: Request) {
       user: safeUser,
     });
 
-    response.cookies.set("medistores_auth", String(user._id), {
+    response.cookies.set("medistores_auth", String(safeUser.id), {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
@@ -71,6 +67,6 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     console.error("Login failed:", error);
-    return NextResponse.json({ success: false, message: "Unable to connect to the server. Please try again." }, { status: 500 });
+    return NextResponse.json({ success: false, message: "Unable to authenticate with MongoDB. Please try again." }, { status: 503 });
   }
 }

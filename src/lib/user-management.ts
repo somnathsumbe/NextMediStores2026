@@ -81,7 +81,7 @@ export async function requireOwnerAccess(request: Request) {
     return { user: null, error: { status: 401, message: "Unauthorized" } };
   }
 
-  if (user.active === false) {
+  if (user.active !== true) {
     return { user: null, error: { status: 403, message: "Your account is inactive." } };
   }
 

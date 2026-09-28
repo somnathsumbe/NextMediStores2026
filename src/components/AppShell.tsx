@@ -77,23 +77,8 @@ type StoredUser = {
   role?: string;
 };
 
-function getStoredUser(): StoredUser | null {
-  if (typeof window === "undefined") return null;
-  for (const storage of [window.localStorage, window.sessionStorage]) {
-    const raw = storage.getItem("medistores_user");
-    if (!raw) continue;
-    try {
-      const user = JSON.parse(raw) as StoredUser;
-      return user;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
 function getDisplayName(user: StoredUser | null) {
-  return user?.ownerName?.trim() || user?.businessName?.trim() || user?.name?.trim() || user?.email?.trim() || "User";
+  return user?.name?.trim() || user?.ownerName?.trim() || user?.businessName?.trim() || user?.email?.trim() || "User";
 }
 
 function getDisplayRole(user: StoredUser | null) {
@@ -121,9 +106,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<StoredUser | null>(null);
 
   useEffect(() => {
-    const user = getStoredUser();
-    setAuth(authService.isAuthenticated());
-    setCurrentUser(user);
+    let active = true;
+    setAuth(null);
+    void authService.getSession().then((user) => {
+      if (!active) return;
+      setCurrentUser(user);
+      setAuth(Boolean(user));
+    }).catch(() => {
+      if (!active) return;
+      setCurrentUser(null);
+      setAuth(false);
+    });
+    return () => { active = false; };
   }, [path]);
   useEffect(() => { if (activeGroup) setOpenGroup(activeGroup); }, [activeGroup]);
   useEffect(() => { if (auth === false) router.replace("/login"); }, [auth, router]);
@@ -131,9 +125,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   async function handleLogout() {
     if (loggingOut) return;
     setLoggingOut(true);
-    await authService.logout();
-    router.replace("/login");
-    router.refresh();
+    try { await authService.logout(); } finally {
+      setAuth(false);
+      setCurrentUser(null);
+      router.replace("/login");
+      router.refresh();
+    }
   }
 
   if (auth === null || auth === false) return <div className="p-5 text-center">Loading MediStores...</div>;
@@ -168,7 +165,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <button className="side-link w-100 border-0 bg-transparent text-start" onClick={() => void handleLogout()} disabled={loggingOut}><i className="bi bi-box-arrow-right" aria-hidden="true" />{loggingOut ? "Signing Out..." : "Sign Out"}</button>
         </aside>
         <main className="main">
-          <header className="topbar" aria-label="Application header"><button aria-label="Open navigation menu" className="btn icon-btn mobile-toggle" onClick={() => setOpen(!open)}><i className="bi bi-list" /></button><div className="top-actions"><button className="icon-btn" aria-label="Notifications"><i className="bi bi-bell" aria-hidden="true" /></button>{currentUser ? <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}><div className="header-user-avatar" title={getDisplayName(currentUser)} aria-label={getDisplayName(currentUser)}>{getInitials(getDisplayName(currentUser))}</div><div style={{ display: "flex", flexDirection: "column", minWidth: 0, lineHeight: 1.15 }}><span style={{ fontSize: 12, fontWeight: 700, color: "#1d2433", whiteSpace: "nowrap" }}>{getDisplayName(currentUser)}</span><span style={{ fontSize: 10, color: "#737d90", textTransform: "uppercase", letterSpacing: ".04em", whiteSpace: "nowrap" }}>{getDisplayRole(currentUser)}</span></div></div> : null}<button className="icon-btn" type="button" aria-label="Sign Out" title="Sign Out" onClick={() => void handleLogout()} disabled={loggingOut}><i className="bi bi-box-arrow-right" aria-hidden="true" /></button></div></header>
+          <header className="topbar" aria-label="Application header"><button aria-label="Open navigation menu" className="btn icon-btn mobile-toggle" onClick={() => setOpen(!open)}><i className="bi bi-list" /></button><div className="top-actions"><button className="icon-btn" aria-label="Notifications"><i className="bi bi-bell" aria-hidden="true" /></button>{currentUser ? <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}><div className="header-user-avatar" title={getDisplayName(currentUser)} aria-label={getDisplayName(currentUser)}>{getInitials(getDisplayName(currentUser))}</div><div style={{ display: "flex", flexDirection: "column", minWidth: 0, lineHeight: 1.15 }}><span style={{ fontSize: 12, fontWeight: 700, color: "#1d2433", whiteSpace: "nowrap" }}>{getDisplayName(currentUser)}</span><span style={{ fontSize: 10, color: "#737d90", whiteSpace: "nowrap" }}>{currentUser.businessName || getDisplayRole(currentUser)}</span></div></div> : null}<button className="icon-btn" type="button" aria-label="Sign Out" title="Sign Out" onClick={() => void handleLogout()} disabled={loggingOut}><i className="bi bi-box-arrow-right" aria-hidden="true" /></button></div></header>
           {children}
         </main>
         <footer className="footer">© 2026 MediStores · Medical distribution &amp; field sales management</footer>

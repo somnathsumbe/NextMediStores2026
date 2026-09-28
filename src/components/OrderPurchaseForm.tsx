@@ -2,10 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import productsData from "@/data/products.json";
-import customersData from "@/data/customers.json";
-import transportationData from "@/data/transport-details.json";
-import schemesData from "@/data/schemes.json";
 import { mockService } from "@/lib/mock-service";
 import { salesmanService } from "@/lib/salesman-service";
 import type { Salesman } from "@/types/salesman";
@@ -13,7 +9,7 @@ import type { Salesman } from "@/types/salesman";
 type Mode = "order" | "purchase";
 
 type ProductRecord = {
-  id: number;
+  id: string;
   productName: string;
   scientificName?: string;
   batchNumber?: string;
@@ -35,7 +31,7 @@ type ProductRecord = {
 };
 
 type CustomerRecord = {
-  id: number;
+  id: string;
   customerName: string;
   mobile: string;
   gstn?: string;
@@ -46,16 +42,10 @@ type CustomerRecord = {
 };
 
 type TransportRecord = {
-  id: number;
+  id: string;
   name: string;
   vehicleNumber: string;
   contactNumber: string;
-};
-
-type SchemeRecord = {
-  id: number;
-  name: string;
-  description: string;
 };
 
 type FormState = {
@@ -106,15 +96,6 @@ type FormErrors = Partial<Record<keyof FormState, string>> & { general?: string 
 
 type ProductFilter = "all" | "in-stock" | "low-stock" | "out-of-stock" | "valid" | "expiring-30" | "expiring-90" | "expired";
 
-const products = productsData as ProductRecord[];
-const customers = customersData as CustomerRecord[];
-const transports: TransportRecord[] = transportationData.records.map((record) => ({
-  id: record.id,
-  name: record.name,
-  vehicleNumber: "",
-  contactNumber: "",
-}));
-const schemes = schemesData as SchemeRecord[];
 const PAYMENT_OPTIONS = ["Cash", "Cheque", "Other"];
 const UOM_OPTIONS = ["Numbers", "Bottle", "Box", "Strip", "Pack", "Carton"];
 
@@ -196,6 +177,10 @@ function buildValidation(mode: Mode, form: FormState, selectedProduct?: ProductR
 }
 
 export default function OrderPurchaseForm({ mode, title, subtitle, initialOrder }: { mode: Mode; title: string; subtitle: string; initialOrder?: SalesOrderRecord }) {
+  const [products, setProducts] = useState<ProductRecord[]>([]);
+  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
+  const [transports, setTransports] = useState<TransportRecord[]>([]);
+  const [schemes, setSchemes] = useState<string[]>(["No Scheme"]);
   const [form, setForm] = useState<FormState>(emptyForm());
   const [productSearch, setProductSearch] = useState("");
   const [partnerSearch, setPartnerSearch] = useState("");
@@ -205,6 +190,87 @@ export default function OrderPurchaseForm({ mode, title, subtitle, initialOrder 
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const response = await fetch("/api/products", { cache: "no-store" });
+        if (!response.ok) throw new Error("Unable to load products.");
+        const payload = await response.json();
+        const records = Array.isArray(payload?.records) ? payload.records : Array.isArray(payload) ? payload : [];
+        setProducts(records.map((record: any) => ({
+          id: String(record.id ?? record._id ?? ""),
+          productName: record.productName ?? "",
+          scientificName: record.scientificName,
+          batchNumber: record.batchNumber ?? "",
+          mrp: Number(record.mrp ?? 0),
+          ptrSellRate: Number(record.ptrSellRate ?? record.mrp ?? 0),
+          manufacturer: record.manufacturer ?? "",
+          manufactureDate: record.manufactureDate ?? "",
+          expiryDate: record.expiryDate ?? "",
+          drugContent: record.drugContent ?? "",
+          packingDescription: record.packingDescription ?? "",
+          availableQuantity: Number(record.availableQuantity ?? 0),
+          quantity: Number(record.quantity ?? 0),
+          minQuantity: Number(record.minQuantity ?? 0),
+          maxQuantity: Number(record.maxQuantity ?? 0),
+          drugGroup: record.drugGroup ?? "",
+          unit: record.unit ?? record.unitType ?? "Numbers",
+          categoryId: record.categoryId,
+          hsn: record.hsn ?? record.hsnCode ?? "",
+        })));
+      } catch {
+        setProducts([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadProducts();
+  }, []);
+
+  useEffect(() => {
+    const loadMasters = async () => {
+      try {
+        const [partiesResponse, transportResponse] = await Promise.all([
+          fetch("/api/parties", { cache: "no-store" }),
+          fetch("/api/transport", { cache: "no-store" }),
+        ]);
+        const [partiesPayload, transportPayload] = await Promise.all([
+          partiesResponse.json(),
+          transportResponse.json(),
+        ]);
+        if (!partiesResponse.ok) throw new Error("Unable to load parties.");
+        if (!transportResponse.ok) throw new Error("Unable to load transport records.");
+
+        const parties = Array.isArray(partiesPayload.records) ? partiesPayload.records : [];
+        const transportRecords = Array.isArray(transportPayload.records) ? transportPayload.records : [];
+        setCustomers(parties.filter((party: any) => party.active !== false).map((party: any) => ({
+          id: String(party.id ?? party._id ?? ""),
+          customerName: String(party.firmName ?? ""),
+          mobile: String(party.phone ?? ""),
+          gstn: String(party.gstnNumber ?? ""),
+          address: String(party.address ?? ""),
+          city: String(party.city ?? ""),
+          state: String(party.state ?? ""),
+          email: String(party.email ?? ""),
+        })));
+        setTransports(transportRecords.filter((transport: any) => transport.status !== "Inactive").map((transport: any) => ({
+          id: String(transport.id ?? transport._id ?? ""),
+          name: String(transport.name ?? ""),
+          vehicleNumber: "",
+          contactNumber: "",
+        })));
+        setSchemes(Array.from(new Set(["No Scheme", ...parties.map((party: any) => String(party.scheme ?? "").trim()).filter(Boolean)])));
+      } catch {
+        setCustomers([]);
+        setTransports([]);
+        setSchemes(["No Scheme"]);
+      }
+    };
+
+    void loadMasters();
+  }, []);
 
   useEffect(() => {
     const loadSalesmen = async () => {
@@ -242,9 +308,14 @@ export default function OrderPurchaseForm({ mode, title, subtitle, initialOrder 
         remarks: initialOrder.remarks ?? "",
       });
       setProductSearch(products.find((product) => String(product.id) === String(initialOrder.productId))?.productName ?? "");
-      setPartnerSearch(customers.find((customer) => String(customer.id) === String(initialOrder.partnerId))?.customerName ?? "");
     }
   }, [initialOrder]);
+
+  useEffect(() => {
+    if (initialOrder) {
+      setPartnerSearch(customers.find((customer) => String(customer.id) === String(initialOrder.partnerId))?.customerName ?? "");
+    }
+  }, [customers, initialOrder]);
 
   const selectedProduct = useMemo(
     () => products.find((product) => String(product.id) === form.productId),
@@ -252,7 +323,7 @@ export default function OrderPurchaseForm({ mode, title, subtitle, initialOrder 
   );
   const selectedPartner = useMemo(
     () => customers.find((customer) => String(customer.id) === form.partnerId),
-    [form.partnerId],
+    [customers, form.partnerId],
   );
   const selectedSalesman = useMemo(
     () => salesmen.find((salesman) => String(salesman.id) === form.salesmanId),
@@ -260,8 +331,10 @@ export default function OrderPurchaseForm({ mode, title, subtitle, initialOrder 
   );
 
   useEffect(() => {
-    setIsLoading(false);
-  }, []);
+    if (products.length === 0 && !isLoading) {
+      setProductSearch("");
+    }
+  }, [products.length, isLoading]);
 
   useEffect(() => {
     if (!selectedProduct) {
@@ -321,7 +394,7 @@ export default function OrderPurchaseForm({ mode, title, subtitle, initialOrder 
     return customers.filter((customer) =>
       !query || [customer.customerName, customer.mobile, customer.address, customer.gstn ?? ""].join(" ").toLowerCase().includes(query),
     );
-  }, [partnerSearch]);
+  }, [customers, partnerSearch]);
 
   const subtotal = Number(form.rate || 0) * Number(form.quantity || 0);
   const gstValue = Number(form.gstAmount || 0);
@@ -571,7 +644,7 @@ export default function OrderPurchaseForm({ mode, title, subtitle, initialOrder 
                       <label className="form-label">Scheme</label>
                       <select className="form-select" value={form.scheme} onChange={(event) => handleFieldChange("scheme", event.target.value)}>
                         {schemes.map((scheme) => (
-                          <option key={scheme.id} value={scheme.name}>{scheme.name}</option>
+                          <option key={scheme} value={scheme}>{scheme}</option>
                         ))}
                       </select>
                     </div>

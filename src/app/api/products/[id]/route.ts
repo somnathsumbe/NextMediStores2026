@@ -83,6 +83,27 @@ function serialize(record: ProductDocument | null) {
   };
 }
 
+export async function GET(_request: Request, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params;
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Product not found." }, { status: 404 });
+    }
+
+    const collection = (await getMongoDb()).collection<ProductDocument>(collectionName);
+    const record = await collection.findOne({ _id: new ObjectId(id) });
+    if (!record) {
+      return NextResponse.json({ error: "Product not found." }, { status: 404 });
+    }
+
+    return NextResponse.json({ record: serialize(record) });
+  } catch (error) {
+    console.error("Product fetch by id failed:", error);
+    const message = error instanceof Error ? error.message : "Unable to load product.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   try {
     const { id } = params;
