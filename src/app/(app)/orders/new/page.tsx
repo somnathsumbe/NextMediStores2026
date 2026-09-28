@@ -48,7 +48,7 @@ type PurchaseOrderItem = {
   expiryDate: string;
   quantity: number;
   freeQuantity: number;
-  unit: string;
+  unit: number | "";
   scheme: string;
   sellRate: number;
   mrp: number;
@@ -182,7 +182,7 @@ function buildItemFromProduct(product: ProductRecord): PurchaseOrderItem {
     expiryDate: product.expiryDate || product.expiry || "",
     quantity: 1,
     freeQuantity: 0,
-    unit: product.unit || product.unitType || "",
+    unit: 1,
     scheme: "No Scheme",
     sellRate,
     mrp,
@@ -446,8 +446,10 @@ export default function OrdersNewPage() {
     if (!editingDraft.hsn?.trim()) nextErrors.hsn = "HSN is required from Product Master.";
     if (!editingDraft.expiryDate) nextErrors.expiryDate = "Expiry date is required.";
     if (!Number.isFinite(Number(editingDraft.quantity)) || Number(editingDraft.quantity) < 0) nextErrors.quantity = "Quantity must be zero or greater.";
-    if (Number(editingDraft.freeQuantity) < 0) nextErrors.freeQuantity = "Free quantity cannot be negative.";
-    if (!editingDraft.unit?.trim()) nextErrors.unit = "Unit is required.";
+    const discountQuantity = Number(editingDraft.freeQuantity ?? 0);
+    if (!Number.isFinite(discountQuantity) || !Number.isInteger(discountQuantity) || discountQuantity < 0) nextErrors.freeQuantity = "Discount Quantity must be a non-negative whole number.";
+    if (editingDraft.unit === null || editingDraft.unit === undefined || String(editingDraft.unit).trim() === "") nextErrors.unit = "Unit is required.";
+    else if (!Number.isInteger(Number(editingDraft.unit)) || Number(editingDraft.unit) < 1) nextErrors.unit = "Unit must be a positive whole number.";
     if (!Number.isFinite(Number(editingDraft.sellRate)) || Number(editingDraft.sellRate) < 0) nextErrors.sellRate = "Sell rate is required and cannot be negative.";
     if (Number(editingDraft.mrp) < 0) nextErrors.mrp = "MRP cannot be negative.";
     if (Number(editingDraft.gst) < 0) nextErrors.gst = "GST cannot be negative.";
@@ -468,6 +470,7 @@ export default function OrdersNewPage() {
 
     const updatedItem: PurchaseOrderItem = {
       ...editingDraft,
+      unit: Number(editingDraft.unit),
       amount: calculatePurchaseItemAmount(editingDraft).amount,
     };
 
@@ -519,13 +522,16 @@ export default function OrdersNewPage() {
     if (purchaseOrder.items.length === 0) errors.items = "At least one product is required.";
 
     purchaseOrder.items.forEach((item, index) => {
+      const itemToValidate = editingDraft?.id === item.id ? editingDraft : item;
       if (!item.hsn?.trim()) errors[`item-${index}-hsn`] = "HSN is required from Product Master.";
       if (!item.batchNumber?.trim()) errors[`item-${index}-batchNumber`] = "Batch number is required.";
       if (!item.expiryDate) errors[`item-${index}-expiryDate`] = "Expiry date is required.";
       if (!Number.isFinite(Number(item.quantity)) || Number(item.quantity) < 0) errors[`item-${index}-quantity`] = "Quantity must be zero or greater.";
-      if (!item.unit?.trim()) errors[`item-${index}-unit`] = "Unit is required.";
+      if (itemToValidate.unit === null || itemToValidate.unit === undefined || String(itemToValidate.unit).trim() === "") errors[`item-${index}-unit`] = "Unit is required.";
+      else if (!Number.isInteger(Number(itemToValidate.unit)) || Number(itemToValidate.unit) < 1) errors[`item-${index}-unit`] = "Unit must be a positive whole number.";
       if (!Number.isFinite(Number(item.sellRate)) || Number(item.sellRate) < 0) errors[`item-${index}-sellRate`] = "Sell rate is required and cannot be negative.";
-      if (Number(item.freeQuantity) < 0) errors[`item-${index}-freeQuantity`] = "Free quantity cannot be negative.";
+      const discountQuantity = Number(itemToValidate.freeQuantity ?? 0);
+      if (!Number.isFinite(discountQuantity) || !Number.isInteger(discountQuantity) || discountQuantity < 0) errors[`item-${index}-freeQuantity`] = "Discount Quantity must be a non-negative whole number.";
       if (Number(item.discountPercentage) < 0 || Number(item.discountPercentage) > 100) errors[`item-${index}-discountPercentage`] = "Discount must be between 0 and 100%.";
     });
 
@@ -550,6 +556,7 @@ export default function OrdersNewPage() {
         const itemToSave = editingDraft?.id === item.id ? editingDraft : item;
         return {
           ...itemToSave,
+          unit: Number(itemToSave.unit),
           amount: calculatePurchaseItemAmount(itemToSave).amount,
         };
       }),
@@ -831,15 +838,17 @@ export default function OrdersNewPage() {
                       <th rowSpan={2}>Product</th>
                       <th rowSpan={2}>Package Description</th>
                       <th rowSpan={2}>Quantity</th>
+                      <th rowSpan={2}>Discount Quantity</th>
+                      <th rowSpan={2}>Unit *</th>
                       <th rowSpan={2}>Scheme</th>
                       <th rowSpan={2}>Batch Number</th>
                       <th rowSpan={2}>Expiry Date</th>
                       <th rowSpan={2}>MRP</th>
-                      <th rowSpan={2}>Sale Rate</th>
+                      <th rowSpan={2}>Purchase Rate</th>
                       <th rowSpan={2}>Discount %</th>
                       <th rowSpan={2}>Taxable</th>
                       <th colSpan={2} className="text-center">GST %</th>
-                      <th rowSpan={2}>Amount</th>
+                      <th rowSpan={2}>Total</th>
                       <th rowSpan={2}>Actions</th>
                     </tr>
                     <tr>
@@ -855,6 +864,8 @@ export default function OrdersNewPage() {
                           <td className="fw-semibold">{item.productName}</td>
                           <td>{item.packageDescription || "—"}</td>
                           <td>{item.quantity}</td>
+                          <td>{item.freeQuantity ?? 0}</td>
+                          <td>{item.unit}</td>
                           <td>{item.scheme || "No Scheme"}</td>
                           <td>{item.batchNumber || "—"}</td>
                           <td>{item.expiryDate || "—"}</td>
@@ -876,7 +887,7 @@ export default function OrdersNewPage() {
 
                         {expandedProductId === item.id && editingDraft && (
                           <tr>
-                            <td colSpan={15} className="p-0">
+                            <td colSpan={17} className="p-0">
                               <div className="p-3 bg-light-subtle border-top">
                                 <div className="d-flex justify-content-between align-items-center mb-3">
                                   <div className="fw-semibold">Product Details</div>
@@ -942,23 +953,39 @@ export default function OrdersNewPage() {
                                     {rowErrors.quantity && <div className="invalid-feedback d-block">{rowErrors.quantity}</div>}
                                   </div>
                                   <div className="col-md-6 col-xl-3">
+                                    <label className="form-label">Discount Quantity</label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="1"
+                                      inputMode="numeric"
+                                      className={`form-control ${rowErrors.freeQuantity ? "is-invalid" : ""}`}
+                                      value={editingDraft.freeQuantity ?? 0}
+                                      onChange={(event) => setEditingDraft((current) => current ? { ...current, freeQuantity: Number(event.target.value || 0) } : current)}
+                                    />
+                                    {rowErrors.freeQuantity && <div className="invalid-feedback d-block">{rowErrors.freeQuantity}</div>}
+                                  </div>
+                                  <div className="col-md-6 col-xl-3">
                                     <label className="form-label">Scheme</label>
                                     <select className="form-select" value={editingDraft.scheme} onChange={(event) => setEditingDraft((current) => current ? { ...current, scheme: event.target.value } : current)}>
                                       {schemes.map((scheme) => <option key={scheme} value={scheme}>{scheme}</option>)}
                                     </select>
                                   </div>
                                   <div className="col-md-6 col-xl-3">
-                                    <label className="form-label">Unit <span className="text-danger">*</span></label>
+                                    <label className="form-label">Unit *</label>
                                     <input
+                                      type="number"
+                                      min="1"
+                                      step="1"
+                                      inputMode="numeric"
                                       className={`form-control ${rowErrors.unit ? "is-invalid" : ""}`}
                                       value={editingDraft.unit}
-                                      readOnly={Boolean(editingDraft.unit)}
-                                      onChange={(event) => setEditingDraft((current) => current ? { ...current, unit: event.target.value } : current)}
+                                      onChange={(event) => setEditingDraft((current) => current ? { ...current, unit: event.target.value === "" ? "" : Number(event.target.value) } : current)}
                                     />
                                     {rowErrors.unit && <div className="invalid-feedback d-block">{rowErrors.unit}</div>}
                                   </div>
                                   <div className="col-md-6 col-xl-3">
-                                    <label className="form-label">Sell Rate <span className="text-danger">*</span></label>
+                                    <label className="form-label">Purchase Rate <span className="text-danger">*</span></label>
                                     <input type="number" min="0" step="0.01" className={`form-control ${rowErrors.sellRate ? "is-invalid" : ""}`} value={editingDraft.sellRate} onChange={(event) => setEditingDraft((current) => current ? { ...current, sellRate: Number(event.target.value || 0) } : current)} />
                                     {rowErrors.sellRate && <div className="invalid-feedback d-block">{rowErrors.sellRate}</div>}
                                   </div>
