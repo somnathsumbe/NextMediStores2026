@@ -42,7 +42,7 @@ const menuGroups: MenuGroup[] = [
     label: "Reports",
     icon: "bi-bar-chart",
     links: [
-      ["Payable", "/reports?section=payable", "bi-wallet2"],
+      ["Payable", "/payable", "bi-wallet2"],
       ["Receivable", "/reports?section=receivable", "bi-cash-stack"],
       ["Outstanding", "/reports?section=outstanding", "bi-hourglass-split"],
       ["Account", "/reports?section=account", "bi-person-vcard"],
